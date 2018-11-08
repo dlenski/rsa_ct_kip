@@ -90,8 +90,6 @@ mod = number.bytes_to_long(d64sb(k.find(
   '{http://www.w3.org/2000/09/xmldsig#}Modulus').text))
 exp = number.bytes_to_long(d64sb(k.find(
   '{http://www.w3.org/2000/09/xmldsig#}Exponent').text))
-print(mod)
-print(exp)
 pubk = RSA.construct( (int(mod), int(exp)) )
 pl = res1.find('.//Payload')
 server_nonce = d64sb(pl.find('Nonce').text)
@@ -110,7 +108,6 @@ print("Generated client nonce:\n\tplaintext: {}\n\tencrypted: {}".format(
 req2_filled = req2_tmpl.format(
   session_id=session_id, encrypted_client_nonce=hexlify(encrypted_client_nonce).decode(),
   server_nonce=hexlify(server_nonce).decode())
-print(req2_filled)
 req2 = soap.make_ClientRequest('ServerFinished', pd, req2_filled)
 pd_res2, res2 = soap.parse_ServerResponse(s.send(s.prepare_request(req2)))
 
