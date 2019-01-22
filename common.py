@@ -12,6 +12,6 @@ def e64s(x):
 def e64bs(x):
   return e64b(x).decode()
 def d64s(x):
-  return d64b(x.encode()).decode()
+  return d64b(''.join(x.itertext()).encode()).decode()
 def d64sb(x):
   return d64b(x.encode())
