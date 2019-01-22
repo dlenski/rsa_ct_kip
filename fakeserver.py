@@ -3,7 +3,7 @@ import ssl
 import random
 import zlib
 from flask import Flask, request, abort, Response
-from xml.etree import ET
+from xml.etree import ElementTree as ET
 from Crypto.PublicKey import RSA
 from Crypto.Util import number
 from Crypto.Cipher import PKCS1_OAEP

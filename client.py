@@ -8,7 +8,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Util import number
 from Crypto.Cipher import PKCS1_OAEP
 
-from common import e64s, d64s, d64b, d64sb, hexlify
+from common import e64b, e64s, d64s, d64b, d64sb, hexlify
 
 ########################################
 
@@ -36,7 +36,7 @@ class Soapifier(object):
         return Request('POST', self.url, data=soap, headers={
             'Authorization': self.auth,
             'SOAPAction': action,
-            'content-type': 'application/vnd.otps.ctk-kip'})
+            'content-type': 'application/vnd.otps.ct-kip'})
 
     def parse_ServerResponse(self, response):
         outer, inner = 'ServerResponse', 'Response'
@@ -100,14 +100,14 @@ print("Got server nonce and RSA pubkey:\n{}\n{}".format(
 # generate and encrypt client nonce
 client_nonce = bytearray([random.getrandbits(8) for i in range(16)])
 cipher = PKCS1_OAEP.new(pubk)
-encrypted_client_nonce = cipher.encrypt(hexlify(client_nonce))
+encrypted_client_nonce = cipher.encrypt(client_nonce)
 print("Generated client nonce:\n\tplaintext: {}\n\tencrypted: {}".format(
     hexlify(client_nonce), hexlify(encrypted_client_nonce)))
 
 # send second request
 req2_filled = req2_tmpl.format(
-  session_id=session_id, encrypted_client_nonce=hexlify(encrypted_client_nonce).decode(),
-  server_nonce=hexlify(server_nonce).decode())
+  session_id=session_id, encrypted_client_nonce=e64b(encrypted_client_nonce).decode(),
+  server_nonce=e64b(server_nonce).decode())
 req2 = soap.make_ClientRequest('ServerFinished', pd, req2_filled)
 pd_res2, res2 = soap.parse_ServerResponse(s.send(s.prepare_request(req2)))
 
