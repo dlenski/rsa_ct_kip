@@ -7,6 +7,7 @@ from xml.etree import ElementTree as ET
 from Crypto.PublicKey import RSA
 from Crypto.Util import number
 from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Random import get_random_bytes
 
 from common import e64b, e64s, d64s, d64b, d64sb, hexlify
 
@@ -98,7 +99,7 @@ print("Got server nonce and RSA pubkey:\n{}\n{}".format(
     hexlify(server_nonce), pubk.exportKey('PEM').decode()))
 
 # generate and encrypt client nonce
-client_nonce = bytearray([random.getrandbits(8) for i in range(16)])
+client_nonce = get_random_bytes(16)
 cipher = PKCS1_OAEP.new(pubk)
 encrypted_client_nonce = cipher.encrypt(client_nonce)
 print("Generated client nonce:\n\tplaintext: {}\n\tencrypted: {}".format(
