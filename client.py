@@ -57,7 +57,7 @@ class Soapifier(object):
         pd = r.find('{http://ctkipservice.rsasecurity.com}ProvisioningData')
         rr = r.find('{http://ctkipservice.rsasecurity.com}' + inner)
 
-        return ET.fromstring(d64s(pd)), ET.fromstring(d64s(rr))
+        return ET.fromstring(d64s(pd.text)), ET.fromstring(d64s(rr.text))
 
 ########################################
 
