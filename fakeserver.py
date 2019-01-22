@@ -2,6 +2,7 @@
 import ssl
 import random
 import zlib
+from datetime import datetime, timedelta
 from flask import Flask, request, abort, Response
 from xml.etree import ElementTree as ET
 from Crypto.PublicKey import RSA
@@ -165,7 +166,8 @@ def handle_ClientNonce(sess, pdx, rx):
     print("DEcrypted ClientNonce: {}".format(hexlify(R_C)))
 
     tid = '%012d' % random.randint(1, 999999999999)    # Random 12-digit decimal number
-    exp = '2019-01-01T00:00:00+00:00'                  # ISO9601 datetime
+    exp = datetime.utcnow() + timedelta(days=365)
+    exp = exp.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()+'+00:00'  # ISO9601 datetime
 
     K_TOKEN = ct_kip_prf_aes(R_C, number.long_to_bytes(pubk.n), b"Key generation", R_S)
     MAC = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
