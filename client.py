@@ -67,6 +67,7 @@ req2_tmpl='''<?xml version="1.0" encoding="UTF-8"?><ClientNonce xmlns="http://ww
 
 p = argparse.ArgumentParser()
 p.add_argument('-v', '--verbose', action='count')
+p.add_argument('-k', '--no-verify', dest='verify', action='store_false', default=True, help="Don't verify server cert")
 p.add_argument('url')
 p.add_argument('activation_code')
 args = p.parse_args()
@@ -79,7 +80,7 @@ soap = Soapifier(args.url, args.activation_code)
 req1 = soap.make_ClientRequest('StartService', pd, req1)
 
 # get session ID, server key, and server nonce in response
-raw_res1 = s.send(s.prepare_request(req1))
+raw_res1 = s.send(s.prepare_request(req1), verify=args.verify)
 if args.verbose:
     print(raw_res1.text)
 pd_res1, res1 = soap.parse_ServerResponse(raw_res1)
@@ -111,7 +112,7 @@ req2_filled = req2_tmpl.format(
   session_id=session_id, encrypted_client_nonce=e64b(encrypted_client_nonce).decode(),
   server_nonce=e64b(server_nonce).decode())
 req2 = soap.make_ClientRequest('ServerFinished', pd, req2_filled)
-pd_res2, res2 = soap.parse_ServerResponse(s.send(s.prepare_request(req2)))
+pd_res2, res2 = soap.parse_ServerResponse(s.send(s.prepare_request(req2), verify=args.verify))
 
 if args.verbose:
     print(res2)
