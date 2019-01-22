@@ -10,6 +10,7 @@ from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 
 from common import hexlify, unhexlify, d64b, e64b, e64s, e64bs, d64s, d64sb
+from ct_kip_prf_aes import ct_kip_prf_aes
 
 #####
 # Yay, encryption
@@ -26,6 +27,11 @@ privk = RSA.importKey(open('rsaprivkey.pem').read())
 cipher = PKCS1_OAEP.new(privk)
 
 ########################################
+
+R_S = get_random_bytes(16)
+print('********************************')
+print('Using UNCHANGING server "nonce" R_S = {}'.format(hexlify(R_S)))
+print('********************************')
 
 app = Flask(__name__)
 app.config.update(
@@ -122,7 +128,6 @@ Server will send:
 ########################################
 
 def handle_ClientHello(sess, pdx, rx):
-    rb = e64bs(get_random_bytes(16)).rstrip()
     if sess is None:
         sess = hexlify(get_random_bytes(17)).decode() + '-' + e64bs(get_random_bytes(56) + b'\0').rstrip()
 
@@ -139,28 +144,35 @@ def handle_ClientHello(sess, pdx, rx):
     </ds:KeyValue>
   </EncryptionKey>
   <Payload xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <Nonce xmlns="">{rb}</Nonce>
+    <Nonce xmlns="">{R_S}</Nonce>
   </Payload>
   <Extensions xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <Extension xmlns:ct-kip="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-      <Data>{rb}</Data>
+      <Data>{R_S}</Data>
     </Extension>
   </Extensions>
   <MacAlgorithm xmlns="">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#ct-kip-prf-aes</MacAlgorithm>
-</ServerHello>'''.format(sess = sess, rb = e64bs(rb).rstrip(),
+</ServerHello>'''.format(sess = sess, R_S = e64bs(R_S).rstrip(),
                          mod = e64bs(number.long_to_bytes(pubk.n)).rstrip(),
                          exp = e64bs(number.long_to_bytes(pubk.e)).rstrip() )
 
 
 def handle_ClientNonce(sess, pdx, rx):
     # Decrypt the ClientNonce (this will be the token secret)
-    ct = d64b(rx.find('.//EncryptedNonce', ns).text)
-    print("ENcrypted ClientNonce: {}".format(hexlify(ct)))
-    print("DEcrypted ClientNonce: {}".format(hexlify(cipher.decrypt(ct))))
+    R_C_enc = d64b(rx.find('.//EncryptedNonce', ns).text)
+    print("ENcrypted ClientNonce: {}".format(hexlify(R_C_enc)))
+    R_C = cipher.decrypt(R_C_enc)
+    print("DEcrypted ClientNonce: {}".format(hexlify(R_C)))
 
     tid = '%012d' % random.randint(1, 999999999999)    # Random 12-digit decimal number
     exp = '2019-01-01T00:00:00+00:00'                  # ISO9601 datetime
-    rmb = e64bs(get_random_bytes(16)).rstrip()         # random MAC bytes... urk
+
+    K_TOKEN_hex = ct_kip_prf_aes(R_C, number.long_to_bytes(pubk.n), b"Key generation", R_S)
+    K_TOKEN = unhexlify(K_TOKEN_hex)
+    MAC_hex = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
+    MAC = unhexlify(MAC_hex)
+    print("K_TOKEN (hex): ", K_TOKEN_hex)
+    print("MAC (hex): ", MAC_hex)
 
     pdr = '''<?xml version="1.0"?>\n<ProvisioningData><PinType>0</PinType><AddPIN>1</AddPIN></ProvisioningData>'''
     r='''<?xml version="1.0" encoding="UTF-8"?>
@@ -180,9 +192,10 @@ def handle_ClientNonce(sess, pdx, rx):
     </Extension>
   </Extensions>
   <Mac xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" MacAlgorithm="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#ct-kip-prf-aes">
-    {rmb}
+    {MAC}
   </Mac>
-</ServerFinished>'''.format(tid=e64s(tid).rstrip(), exp=exp, sess=sess, rmb=rmb)
+</ServerFinished>'''.format(tid = e64s(tid).rstrip(), exp=exp, sess=sess,
+                            MAC = e64bs(MAC).rstrip())
 
     return pdr, r
 
