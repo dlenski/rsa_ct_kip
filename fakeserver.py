@@ -7,6 +7,7 @@ from xml.etree import ElementTree as ET
 from Crypto.PublicKey import RSA
 from Crypto.Util import number
 from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Random import get_random_bytes
 
 from common import hexlify, unhexlify, d64b, e64b, e64s, e64bs, d64s, d64sb
 
@@ -121,9 +122,9 @@ Server will send:
 ########################################
 
 def handle_ClientHello(sess, pdx, rx):
-    rb = e64bs(number.long_to_bytes(random.getrandbits(16*8))).rstrip()
+    rb = e64bs(get_random_bytes(16)).rstrip()
     if sess is None:
-        sess = hexlify(number.long_to_bytes(random.getrandbits(17*8))).decode() + '-' + e64bs(number.long_to_bytes(random.getrandbits(56*8))+b'\0').rstrip()
+        sess = hexlify(get_random_bytes(17)).decode() + '-' + e64bs(get_random_bytes(56) + b'\0').rstrip()
 
     return ET.tostring(pdx).decode(), '''<?xml version="1.0" encoding="UTF-8"?>
 <ServerHello xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" SessionID="{sess}" Status="Continue" Version="1.0">
@@ -146,7 +147,9 @@ def handle_ClientHello(sess, pdx, rx):
     </Extension>
   </Extensions>
   <MacAlgorithm xmlns="">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#ct-kip-prf-aes</MacAlgorithm>
-</ServerHello>'''.format(sess = sess, rb = rb, mod = e64bs(number.long_to_bytes(pubk.n)).rstrip(), exp = e64bs(number.long_to_bytes(pubk.e)).rstrip() )
+</ServerHello>'''.format(sess = sess, rb = e64bs(rb).rstrip(),
+                         mod = e64bs(number.long_to_bytes(pubk.n)).rstrip(),
+                         exp = e64bs(number.long_to_bytes(pubk.e)).rstrip() )
 
 
 def handle_ClientNonce(sess, pdx, rx):
@@ -155,9 +158,9 @@ def handle_ClientNonce(sess, pdx, rx):
     print("ENcrypted ClientNonce: {}".format(hexlify(ct)))
     print("DEcrypted ClientNonce: {}".format(hexlify(cipher.decrypt(ct))))
 
-    tid = e64s('%012d' % random.randint(1, 999999999999)).rstrip()         # Random 12-digit decimal number, b64enc
-    exp = '2019-01-01T00:00:00+00:00'                                      # ISO9601 datetime
-    rmb = e64bs(number.long_to_bytes(random.getrandbits(16*8))).rstrip()   # random MAC bytes... urk
+    tid = '%012d' % random.randint(1, 999999999999)    # Random 12-digit decimal number
+    exp = '2019-01-01T00:00:00+00:00'                  # ISO9601 datetime
+    rmb = e64bs(get_random_bytes(16)).rstrip()         # random MAC bytes... urk
 
     pdr = '''<?xml version="1.0"?>\n<ProvisioningData><PinType>0</PinType><AddPIN>1</AddPIN></ProvisioningData>'''
     r='''<?xml version="1.0" encoding="UTF-8"?>
