@@ -12,7 +12,7 @@ import struct
 def cmac(key, msg):
     c = CMAC.new(key, ciphermod=AES)
     c.update(msg)
-    return c.hexdigest().encode("ASCII")
+    return c.digest()
 
 
 def ct_kip_prf_aes(key, *msg, dslen=16, pad=None):
@@ -47,10 +47,9 @@ def main():
             k,
             b"Key generation",
             R_S)
-    print("K_TOKEN, modulus only, no padding, key first:", K_TOKEN)
-    K_TOKEN = unhexlify(K_TOKEN)
+    print("K_TOKEN, modulus only, no padding, key first:", hexlify(K_TOKEN))
     MAC_CALC = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
-    print("MAC(calc)", MAC_CALC, "MAC(exp)", hexlify(MAC))
+    print("MAC(calc)", hexlify(MAC_CALC), "MAC(exp)", hexlify(MAC))
 
 if __name__ == "__main__":
     main()

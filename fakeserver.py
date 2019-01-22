@@ -167,12 +167,10 @@ def handle_ClientNonce(sess, pdx, rx):
     tid = '%012d' % random.randint(1, 999999999999)    # Random 12-digit decimal number
     exp = '2019-01-01T00:00:00+00:00'                  # ISO9601 datetime
 
-    K_TOKEN_hex = ct_kip_prf_aes(R_C, number.long_to_bytes(pubk.n), b"Key generation", R_S)
-    K_TOKEN = unhexlify(K_TOKEN_hex)
-    MAC_hex = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
-    MAC = unhexlify(MAC_hex)
-    print("K_TOKEN (hex): ", K_TOKEN_hex)
-    print("MAC (hex): ", MAC_hex)
+    K_TOKEN = ct_kip_prf_aes(R_C, number.long_to_bytes(pubk.n), b"Key generation", R_S)
+    MAC = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
+    print("K_TOKEN (hex): ", hexlify(K_TOKEN))
+    print("MAC (hex): ", hexlify(MAC))
 
     pdr = '''<?xml version="1.0"?>\n<ProvisioningData><PinType>0</PinType><AddPIN>1</AddPIN></ProvisioningData>'''
     r='''<?xml version="1.0" encoding="UTF-8"?>
