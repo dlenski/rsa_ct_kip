@@ -9,7 +9,8 @@ from Crypto.Util import number
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 
-from common import e64b, e64s, d64s, d64b, d64sb, hexlify
+from common import e64b, e64s, d64s, d64b, d64sb, hexlify, unhexlify
+from ct_kip_prf_aes import ct_kip_prf_aes
 
 ########################################
 
@@ -93,13 +94,13 @@ exp = number.bytes_to_long(d64sb(k.find(
   '{http://www.w3.org/2000/09/xmldsig#}Exponent').text))
 pubk = RSA.construct( (int(mod), int(exp)) )
 pl = res1.find('.//Payload')
-server_nonce = d64sb(pl.find('Nonce').text)
+R_S = server_nonce = d64sb(pl.find('Nonce').text)
 
 print("Got server nonce and RSA pubkey:\n{}\n{}".format(
     hexlify(server_nonce), pubk.exportKey('PEM').decode()))
 
 # generate and encrypt client nonce
-client_nonce = get_random_bytes(16)
+R_C = client_nonce = get_random_bytes(16)
 cipher = PKCS1_OAEP.new(pubk)
 encrypted_client_nonce = cipher.encrypt(client_nonce)
 print("Generated client nonce:\n\tplaintext: {}\n\tencrypted: {}".format(
@@ -121,5 +122,13 @@ token_id = d64b(res2.find('KeyID').text)
 key_exp = res2.find('KeyExpiryDate').text
 mac = d64b(res2.find('Mac').text)
 print("Got key ID, token ID, key expiration date, and MAC:"
-      "\nKeyID: {}\nTokenID: {}\nExpiration: {}\nMAC: {}".format(
-        key_id, token_id, key_exp, mac))
+      "\nKeyID: {}\nTokenID: {}\nExpiration: {}".format(
+        key_id, token_id, key_exp))
+
+# verify MAC and token
+K_TOKEN_hex = ct_kip_prf_aes(client_nonce, number.long_to_bytes(pubk.n), b"Key generation", R_S)
+K_TOKEN = unhexlify(K_TOKEN_hex)
+MAC_hex = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
+MAC = unhexlify(MAC_hex)
+if MAC==mac:
+    print("MAC verified. Token seed is: {}".format(K_TOKEN_hex))
