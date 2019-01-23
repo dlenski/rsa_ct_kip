@@ -29,11 +29,6 @@ cipher = PKCS1_OAEP.new(privk)
 
 ########################################
 
-R_S = get_random_bytes(16)
-print('********************************')
-print('Using UNCHANGING server "nonce" R_S = {}'.format(hexlify(R_S)))
-print('********************************')
-
 app = Flask(__name__)
 app.config.update(
     PORT=4443,
@@ -132,6 +127,9 @@ def handle_ClientHello(sess, pdx, rx):
     if sess is None:
         sess = hexlify(get_random_bytes(17)).decode() + '-' + e64bs(get_random_bytes(56) + b'\0').rstrip()
 
+    # This is our "server nonce" which the client will parrot back to us, along with its (encrypted) "client nonce"
+    R_S = get_random_bytes(16)
+
     return ET.tostring(pdx).decode(), '''<?xml version="1.0" encoding="UTF-8"?>
 <ServerHello xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" SessionID="{sess}" Status="Continue" Version="1.0">
   <KeyType xmlns="">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/09/otps-wst#SecurID-AES</KeyType>
@@ -159,6 +157,9 @@ def handle_ClientHello(sess, pdx, rx):
 
 
 def handle_ClientNonce(sess, pdx, rx):
+    # The client parrots our nonce back to us (a server with REEL SECURITEH would check that it matches, I guess...?)
+    R_S = d64b(rx.find('.//Extensions/Extension/Data', ns).text)
+
     # Decrypt the ClientNonce (this will be the token secret)
     R_C_enc = d64b(rx.find('.//EncryptedNonce', ns).text)
     print("ENcrypted ClientNonce: {}".format(hexlify(R_C_enc)))
