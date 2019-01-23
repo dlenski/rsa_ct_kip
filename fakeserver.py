@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import ssl
 import random
-import zlib
 from datetime import datetime, timedelta
 from flask import Flask, request, abort, Response
 from xml.etree import ElementTree as ET
@@ -164,6 +163,8 @@ def handle_ClientNonce(sess, pdx, rx):
     MAC = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
     print("K_TOKEN (hex): ", hexlify(K_TOKEN))
     print("MAC (hex): ", hexlify(MAC))
+    print("Token ID: ", tid)
+    print("Token expiration date: ", exp)
 
     pdr = '''<?xml version="1.0"?>\n<ProvisioningData>\n<PinType>0</PinType><AddPIN>1</AddPIN></ProvisioningData>\n'''
     r='''<?xml version="1.0" encoding="UTF-8"?><ServerFinished xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" SessionID="{sess}" Status="Success"><TokenID xmlns="">{tid}</TokenID>

@@ -22,17 +22,18 @@ Provision token using client
 ============================
 
 Provide the client with the activation URL and activation code
-(usually 12 digits). It will communicates with the RSA CT-KIP server
-and provision a token:
+(usually 12 digits), and a file in which to save the token template.
+It will communicate with the RSA CT-KIP server and provision a token:
 
 ```
-$ ./client.py https://server.company.com:443/ctkip/services/CtkipService ACTIVATION_CODE -s template.xml
+$ ./client.py https://server.company.com:443/ctkip/services/CtkipService ACTIVATION_CODE template.xml
 Sending ClientHello request to server...
 Received ServerHello response with server nonce (R_S = 28198dbe2c18a00335179cc5bb4eff3a) and 1024-bit RSA public key
 Generated client nonce (R_C = 12bec1a6f4d09470986b485561c4d2b5)
 Sending ServerFinished request to server, with encrypted client nonce...
 MAC verified (0f103bc63a8819ffdbee657d042144f6)
 Received ServerFinished response with token information:
+  Service ID: RSA CT-KIP
   Key ID: 838999658504
   Token ID: 838999658504
   Token User:
