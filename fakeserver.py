@@ -26,8 +26,8 @@ except Exception as e:
     context = None
     port = 8080
 
-pubk = RSA.importKey(open('rsapubkey.pem').read())
 privk = RSA.importKey(open('rsaprivkey.pem').read())
+pubk = privk.publickey()
 
 # The XML blobs in the protocol appear to indicate
 # RSAES-PKCS1-v1_5 (RFC8017), but it's actually RSAES-OAEP (RFC8017)

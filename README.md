@@ -60,9 +60,9 @@ The server can run either via HTTP or HTTPS. For HTTPS, create a
 `server.pem` file in the same directory. It must contain a trusted,
 signed certificate in order for the RSA SecurID app to connect to it.
 
-The `rsapubkey.pem` and `rsaprivkey.pem` are used for token
+The `rsaprivkey.pem` is the RSA private key used for token
 generation, and shouldn't need to be modified for testing
-purposes. (The included ones have a 1024-bit key with modulus 65537,
+purposes. (The one included is a 1024-bit key with modulus 65537,
 similar to what seem to be used by the "real" RSA CT-KIP server).
 
 Credits
