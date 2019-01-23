@@ -17,8 +17,14 @@ from ct_kip_prf_aes import ct_kip_prf_aes
 # Yay, encryption
 #####
 
-context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-context.load_cert_chain('server.pem')
+try:
+    context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+    context.load_cert_chain('server.pem')
+    port = 4443
+except Exception as e:
+    print("Couldn't load server.pem: will run as plain HTTP, not HTTPS")
+    context = None
+    port = 8080
 
 pubk = RSA.importKey(open('rsapubkey.pem').read())
 privk = RSA.importKey(open('rsaprivkey.pem').read())
@@ -31,7 +37,7 @@ cipher = PKCS1_OAEP.new(privk)
 
 app = Flask(__name__)
 app.config.update(
-    PORT=4443,
+    PORT=port,
     HOST='localhost',
 )
 
