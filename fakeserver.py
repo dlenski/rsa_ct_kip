@@ -10,7 +10,6 @@ from Crypto.Util import number
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 
-from textwrap import fill
 from common import hexlify, unhexlify, d64b, e64b, e64s, e64bs, d64s, d64sb, ns
 from ct_kip_prf_aes import ct_kip_prf_aes
 
@@ -80,11 +79,16 @@ Client sent:
         elif rx.tag == '{http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#}ClientNonce':
             res_pd, res_r = handle_ClientNonce(sess, pdx, rx)
 
-        r = Response(mimetype='text/xml; charset=utf-8', response='''<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><soapenv:Body><ServerResponse xmlns="http://ctkipservice.rsasecurity.com"><AuthData>{auth}</AuthData><ProvisioningData>{pd}
-</ProvisioningData><Response>{res}
-</Response></ServerResponse></soapenv:Body></soapenv:Envelope>'''.format(auth=auth,
-                              pd=fill(e64s(res_pd), 78),
-                              res=fill(e64s(res_r), 78))
+        r = Response(mimetype='text/xml', response='''<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <soapenv:Body>
+    <ServerResponse xmlns="http://ctkipservice.rsasecurity.com">
+      <AuthData>{auth}</AuthData>
+      <ProvisioningData>{pd}</ProvisioningData>
+      <Response>{res}</Response>
+    </ServerResponse>
+  </soapenv:Body>
+</soapenv:Envelope>'''.format(auth=auth,pd=e64s(res_pd), res=e64s(res_r))
         )
         r.headers['X-Powered-By'] = 'Servlet/3.0 JSP/2.2'
 
