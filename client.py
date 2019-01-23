@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import random
 import requests
 import argparse
 from requests import Request
@@ -13,6 +12,18 @@ from common import e64b, e64s, e64bs, d64s, d64b, d64sb, hexlify, hexlifys, unhe
 from ct_kip_prf_aes import ct_kip_prf_aes
 
 ########################################
+
+def get_text(node, convert=None, default=None, getter=None):
+    if node is None:
+        return default
+    text = getter(node) if getter else node.text
+    if convert:
+        try:
+            return convert(text)
+        except:
+            return default
+    else:
+        return text or default
 
 class Soapifier(object):
     soap_env_tmpl = '''<?xml version="1.0" encoding="UTF-8"?>
@@ -95,13 +106,14 @@ k = res1.find('EncryptionKey/dsig:KeyValue/dsig:RSAKeyValue', ns)
 mod = number.bytes_to_long(d64sb(k.find('dsig:Modulus', ns).text))
 exp = number.bytes_to_long(d64sb(k.find('dsig:Exponent', ns).text))
 pubk = RSA.construct( (int(mod), int(exp)) )
-pl = res1.find('Payload')
-R_S = server_nonce = d64sb(pl.find('Nonce').text)
+R_S = server_nonce = d64sb(res1.find('Payload/Nonce').text)
 
 print("Received ServerHello response with server nonce (R_S = {}) and {}-bit RSA public key".format(
     hexlifys(server_nonce), len(number.long_to_bytes(pubk.n))*8))
 
 # generate and encrypt client nonce
+# The XML blobs in the protocol appear to indicate
+# RSAES-PKCS1-v1_5 (RFC8017), but it's actually RSAES-OAEP (RFC8017)
 R_C = client_nonce = get_random_bytes(16)
 print("Generated client nonce (R_C = {})".format(hexlifys(client_nonce)))
 cipher = PKCS1_OAEP.new(pubk)
@@ -111,8 +123,8 @@ if args.verbose:
 
 # send second request
 req2_filled = req2_tmpl.format(
-  session_id=session_id, encrypted_client_nonce=e64b(encrypted_client_nonce).decode(),
-  server_nonce=e64b(server_nonce).decode())
+  session_id=session_id, encrypted_client_nonce=e64bs(encrypted_client_nonce),
+  server_nonce=e64bs(server_nonce))
 req2 = soap.make_ClientRequest('ServerFinished', pd, req2_filled)
 print("Sending ServerFinished request to server, with encrypted client nonce...")
 raw_res2 = s.send(s.prepare_request(req2))
@@ -121,27 +133,19 @@ if args.verbose:
     print(res2)
 
 # get stuff from response
-key_id = d64s(res2.find('TokenID').text)
-token_id = d64s(res2.find('KeyID').text)
-key_exp = res2.find('KeyExpiryDate').text
-mac = d64b(res2.find('Mac').text)
-try:
-    user = res2.find('UserID').text or ''
-except:
-    user = None
-try:
-    pin_type = int(pd_res2.find('PinType').text)
-except:
-    pin_type = 0
-try:
-    add_pin = int(pd_res2.find('AddPIN').text)
-except:
-    add_pin = 1
-try:
-    otpformat = res2.find('Extensions/Extension/OTPFormat').text
-    otplength = int(res2.find('Extensions/Extension/OTPLength').text)
-    otptime = int(res2.find('Extensions/Extension/otps:OTPMode/otps:Time', ns).attrib['TimeInterval'])
-except:
+key_id = get_text(res2.find('TokenID'), d64s)
+token_id = get_text(res2.find('KeyID'), d64s)
+key_exp = get_text(res2.find('KeyExpiryDate'))
+mac = get_text(res2.find('Mac'), d64b)
+user = get_text(res2.find('UserID'), default='')
+pin_type = get_text(pd_res2.find('PinType'), int, 0)
+add_pin = get_text(pd_res2.find('AddPIN'), int, 1)
+otpext = res2.find('Extensions/Extension')
+if otpext:
+    otpformat = get_text(res2.find('OTPFormat'), default='Decimal')
+    otplength = get_text(res2.find('OTPLength'), int, 8)
+    otptime = get_text(res2.find('otps:OTPMode/otps:Time', ns), int, 60, lambda n: n.attrib.get('TimeInterval'))
+else:
     otpformat, otplength, otptime = 'Decimal', 8, 60
 
 # verify MAC and token
