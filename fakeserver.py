@@ -10,6 +10,7 @@ from Crypto.Util import number
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 
+from textwrap import fill
 from common import hexlify, unhexlify, d64b, e64b, e64s, e64bs, d64s, d64sb
 from ct_kip_prf_aes import ct_kip_prf_aes
 
@@ -46,6 +47,7 @@ ns = {
 # Handle the gawdaful SOAPy layer on the outside
 
 @app.route('/', methods=('POST',))
+@app.route('/ctkip/services/CtkipService', methods=('POST',))
 def unsoap():
     auth = request.headers.get('Authorization')
     assert request.content_type == 'application/vnd.otps.ct-kip'
@@ -86,16 +88,11 @@ Client sent:
             res_pd, res_r = handle_ClientNonce(sess, pdx, rx)
             compr = True
 
-        r = Response(mimetype='text/xml', response='''<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <soapenv:Body>
-    <ServerResponse xmlns="http://ctkipservice.rsasecurity.com">
-      <AuthData>{auth}</AuthData>
-      <ProvisioningData>{pd}</ProvisioningData>
-      <Response>{res}</Response>
-    </ServerResponse>
-  </soapenv:Body>
-</soapenv:Envelope>'''.format(auth=auth, pd=e64s(res_pd), res=e64s(res_r))
+        r = Response(mimetype='text/xml; charset=utf-8', response='''<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><soapenv:Body><ServerResponse xmlns="http://ctkipservice.rsasecurity.com"><AuthData>{auth}</AuthData><ProvisioningData>{pd}
+</ProvisioningData><Response>{res}
+</Response></ServerResponse></soapenv:Body></soapenv:Envelope>'''.format(auth=auth,
+                              pd=fill(e64s(res_pd), 78),
+                              res=fill(e64s(res_r), 78))
         )
         r.headers['X-Powered-By'] = 'Servlet/3.0 JSP/2.2'
         setattr(r, 'allow_compression', compr)
@@ -130,27 +127,19 @@ def handle_ClientHello(sess, pdx, rx):
     # This is our "server nonce" which the client will parrot back to us, along with its (encrypted) "client nonce"
     R_S = get_random_bytes(16)
 
-    return ET.tostring(pdx).decode(), '''<?xml version="1.0" encoding="UTF-8"?>
-<ServerHello xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" SessionID="{sess}" Status="Continue" Version="1.0">
-  <KeyType xmlns="">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/09/otps-wst#SecurID-AES</KeyType>
-  <EncryptionAlgorithm xmlns="">http://www.w3.org/2001/04/xmlenc#rsa-1_5</EncryptionAlgorithm>
-  <EncryptionKey xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <ds:KeyValue xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-      <ds:RSAKeyValue xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-        <ds:Modulus>{mod}</ds:Modulus>
-        <ds:Exponent>{exp}</ds:Exponent>
-      </ds:RSAKeyValue>
-    </ds:KeyValue>
-  </EncryptionKey>
-  <Payload xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <Nonce xmlns="">{R_S}</Nonce>
-  </Payload>
-  <Extensions xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <Extension xmlns:ct-kip="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-      <Data>{R_S}</Data>
-    </Extension>
-  </Extensions>
-  <MacAlgorithm xmlns="">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#ct-kip-prf-aes</MacAlgorithm>
+    return ET.tostring(pdx).decode(), '''<?xml version="1.0" encoding="UTF-8"?><ServerHello xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" SessionID="{sess}" Status="Continue" Version="1.0"><KeyType xmlns="">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/09/otps-wst#SecurID-AES</KeyType>
+<EncryptionAlgorithm xmlns="">http://www.w3.org/2001/04/xmlenc#rsa-1_5</EncryptionAlgorithm>
+<EncryptionKey xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><ds:KeyValue xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><ds:RSAKeyValue xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><ds:Modulus>{mod}</ds:Modulus>
+<ds:Exponent>{exp}</ds:Exponent>
+</ds:RSAKeyValue>
+</ds:KeyValue>
+</EncryptionKey>
+<Payload xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Nonce xmlns="">{R_S}</Nonce>
+</Payload>
+<Extensions xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Extension xmlns:ct-kip="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Data>{R_S}</Data>
+</Extension>
+</Extensions>
+<MacAlgorithm xmlns="">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#ct-kip-prf-aes</MacAlgorithm>
 </ServerHello>'''.format(sess = sess, R_S = e64bs(R_S).rstrip(),
                          mod = e64bs(number.long_to_bytes(pubk.n)).rstrip(),
                          exp = e64bs(number.long_to_bytes(pubk.e)).rstrip() )
@@ -175,26 +164,19 @@ def handle_ClientNonce(sess, pdx, rx):
     print("K_TOKEN (hex): ", hexlify(K_TOKEN))
     print("MAC (hex): ", hexlify(MAC))
 
-    pdr = '''<?xml version="1.0"?>\n<ProvisioningData><PinType>0</PinType><AddPIN>1</AddPIN></ProvisioningData>'''
-    r='''<?xml version="1.0" encoding="UTF-8"?>
-<ServerFinished xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" SessionID="{sess}" Status="Success" Version="1.0">
-  <TokenID xmlns="">{tid}</TokenID>
-  <KeyID xmlns="">{tid}</KeyID>
-  <KeyExpiryDate xmlns="">{exp}</KeyExpiryDate>
-  <ServiceID xmlns="">RSA CT-KIP</ServiceID>
-  <UserID xmlns=""/>
-  <Extensions xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <Extension xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Critical="true">
-      <OTPFormat>Decimal</OTPFormat>
-      <OTPLength>8</OTPLength>
-      <OTPMode xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-        <Time xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" TimeInterval="60"/>
-      </OTPMode>
-    </Extension>
-  </Extensions>
-  <Mac xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" MacAlgorithm="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#ct-kip-prf-aes">
-    {MAC}
-  </Mac>
+    pdr = '''<?xml version="1.0"?>\n<ProvisioningData>\n<PinType>0</PinType><AddPIN>1</AddPIN></ProvisioningData>\n'''
+    r='''<?xml version="1.0" encoding="UTF-8"?><ServerFinished xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" SessionID="{sess}" Status="Success"><TokenID xmlns="">{tid}</TokenID>
+<KeyID xmlns="">{tid}</KeyID>
+<KeyExpiryDate xmlns="">{exp}</KeyExpiryDate>
+<ServiceID xmlns="">RSA CT-KIP</ServiceID>
+<UserID xmlns=""/>
+<Extensions xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Extension Critical="true" xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><OTPFormat>Decimal</OTPFormat>
+<OTPLength>8</OTPLength>
+<OTPMode xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Time TimeInterval="60" xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/>
+</OTPMode>
+</Extension>
+</Extensions>
+<Mac xmlns="" MacAlgorithm="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#ct-kip-prf-aes" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">{MAC}</Mac>
 </ServerFinished>'''.format(tid = e64s(tid).rstrip(), exp=exp, sess=sess,
                             MAC = e64bs(MAC).rstrip())
 
