@@ -14,7 +14,7 @@ token seed to prevent you from copying it to another computer.
 Requirements
 ============
 
-Client needs Python **3.x**, PyCryptoDome, and requests. [stoken](//github.com/cernekee/stoken) is needed to actually *do* anything with the resulting tokens.
+Client needs Python **3.x**, PyCryptoDome, and requests. [stoken](//github.com/cernekee/stoken) is needed to save the resulting tokens in a usable format.
 
 Server needs Flask as well.
 
@@ -23,7 +23,8 @@ Provision token using client
 
 Provide the client with the activation URL and activation code
 (usually 12 digits), and a file in which to save the token template.
-It will communicate with the RSA CT-KIP server and provision a token:
+It will communicate with the RSA CT-KIP server and provision a token,
+then attempt to call `stoken` to convert the token to XML/.sdtid format:
 
 ```
 $ ./client.py https://server.company.com:443/ctkip/services/CtkipService ACTIVATION_CODE template.xml
@@ -40,12 +41,13 @@ Received ServerFinished response with token information:
   Expiration date: 2020-01-23T00:00:00+00:00
   OTP mode: 8 Decimal, every 60 seconds
   Token seed: 30ade1be20b3867d967bd2927c8eb0ca
-Saved template to template.xml. Convert to XML format (.sdtid) with:
-  stoken export --random --sdtid --template=template.xml > 838999658504.sdtid
+Saved token in XML/.sdtid format to /tmp/test.sdtid
 ```
 
+If `stoken` is not installed in your path, or fails to execute
+successfully, then a template file will be left behind instead.
 Convert the template output to an RSA SecurID token in XML format with
-`stoken`, as instructed:
+a working copy of `stoken`, as instructed:
 
 ```
 $ stoken export --random --sdtid --template=template.xml > 838999658504.sdtid

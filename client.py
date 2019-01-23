@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import requests
 import argparse
+import shutil, subprocess
+from tempfile import NamedTemporaryFile
 from requests import Request
 from xml.etree import ElementTree as ET
 from Crypto.PublicKey import RSA
@@ -76,12 +78,16 @@ pd='''<?xml version="1.0"?><ProvisioningData><Version>5.0.2.440</Version><Manufa
 req1='''<ClientHello xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Version="1.0"><SupportedKeyTypes xmlns=""><Algorithm xsi:type="xsd:anyURI">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/09/otps-wst#SecurID-AES</Algorithm></SupportedKeyTypes><SupportedEncryptionAlgorithms xmlns=""><Algorithm xsi:type="xsd:anyURI">http://www.w3.org/2001/04/xmlenc#rsa-1_5</Algorithm></SupportedEncryptionAlgorithms><SupportedMACAlgorithms xmlns=""><Algorithm xsi:type="xsd:anyURI">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#ct-kip-prf-aes</Algorithm></SupportedMACAlgorithms></ClientHello>'''
 req2_tmpl='''<?xml version="1.0" encoding="UTF-8"?><ClientNonce xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#" Version="1.0" SessionID="{session_id}"><EncryptedNonce xmlns="">{eR_C}</EncryptedNonce><Extensions xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Extension xmlns="" xmlns:ct-kip="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Data>{R_S}</Data></Extension></Extensions></ClientNonce>'''
 
+stoken = shutil.which('stoken')
+
 p = argparse.ArgumentParser()
 p.add_argument('-v', '--verbose', action='count')
 p.add_argument('-k', '--no-verify', dest='verify', action='store_false', default=True, help="Don't verify server TLS cert")
 p.add_argument('url', help='Activation URL provided to you (often ends with /ctkip/services/CtkipService)')
 p.add_argument('activation_code', help='Normally 12 digits long')
-p.add_argument('filename', nargs='?', type=argparse.FileType('w'), help='Save a template file which can be converted to an XML token with stoken')
+p.add_argument('filename', nargs='?', type=argparse.FileType('w'), help=(
+    'Save token in XML/.sdtid format (uses stoken found in path)' if stoken
+    else 'Save a template file which can be converted to a token in XML/.sdtid format with stoken'))
 args = p.parse_args()
 
 s = requests.session()
@@ -168,12 +174,21 @@ print("  Token seed: {}".format(hexlifys(K_TOKEN)))
 if not args.filename:
     print("WARNING: Token has already been committed on server, even though you did not save it.")
 else:
-    with args.filename as f:
+    with (NamedTemporaryFile(mode='w', delete=False) if stoken else args.filename) as f:
         f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
         f.write('<TKNBatch>\n')
         f.write('<TKNHeader><Origin>{}</Origin><DefPinType>{}</DefPinType><DefAddPin>{}</DefAddPin><DefDigits>{}</DefDigits><DefInterval>{}</DefInterval></TKNHeader>\n'.format(
             service_id, pin_type, add_pin, otplength, otptime))
         f.write('<TKN><SN>{}</SN><UserLogin>{}</UserLogin><Death>{}</Death><Seed>={}</Seed></TKN>\n'.format(token_id, user, key_exp[:10].replace('-','/'), e64bs(K_TOKEN)))
         f.write('</TKNBatch>\n')
-    print("Saved template to {}. Convert to XML format (.sdtid) with:".format(f.name))
-    print("  stoken export --random --sdtid --template={} > {}.sdtid".format(f.name, token_id))
+    if stoken:
+        try:
+            subprocess.check_call([stoken, 'export', '--random', '--sdtid', '--template', f.name], stdout=args.filename)
+        except (OSError, subprocess.CalledProcessError):
+            print("WARNING: Failed to save token to XML/.sdtid format with stoken. See template.")
+        else:
+            f = None
+            print("Saved token in XML/.sdtid format to {}".format(args.filename.name))
+    if f:
+        print("Saved template to {}. Working stoken is needed to convert it to XML/.sdtid format:".format(f.name))
+        print("  stoken export --random --sdtid --template={} > {}".format(f.name, args.filename.name if args.filename.name!=f.name else token_id+'.sdtid'))
