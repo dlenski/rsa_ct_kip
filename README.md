@@ -75,19 +75,48 @@ generation, and shouldn't need to be modified for testing
 purposes. (The one included is a 1024-bit key with modulus 65537,
 similar to what seem to be used by the "real" RSA CT-KIP server).
 
+Protocol
+========
+
+The protocol used here is allegedly documented in the [RFC4758](//tools.ietf.org/html/rfc4758) "draft standard".
+There are numerous problems with this protocol:
+
+* The draft RFC is convoluted, overly-complex, and unclear. It's _obviously_ an attempt to describe
+  the operation of an existing program rather than to design a useful protocol.
+* The only "existing implementations" are in RSA's closed-source software. I use scare quotes because
+  the actual implementations [use algorithms that differ in several ways](//github.com/cernekee/stoken/issues/27#issuecomment-456522178),
+  making it impossible to interoperate without reverse-engineering.
+* The exchange is wrapped in several unnecessary layers of base64+XML+SOAP terribleness… but tThe official
+  RSA clients _don't really parse XML_: they just pretend to, and get confused by whitespace differences
+  and similar trivialities.
+* The protocol appears to be trying to solve the following problem,
+  "How can a client and server agree on a long-term key (the token
+  secret) in such a way that if the exchange is [MITM](https://en.wikipedia.org/wiki/Man-in-the-middle_attack)ed,
+  they can't arrive at the same long-term key?" There are numerous things that make this scheme impractical and
+  confusing and unmaintable, but the icing on the cake is that the official clients don't even give a usefully
+  distinctive error message when they **are** being MITMed.
+
+Dear RSA: This is one of the most insanely idiotic protocols I have ever seen. At no point in its rambling,
+incoherent design is it even close to serving a rational purpose. Everyone involved in reverse
+engineering it is now dumber for having studied it. [I award you no points, and may God have mercy on your
+souls](https://www.youtube.com/watch?v=LQCU36pkH7c).
+
 Credits
 =======
 
 * [@cemeyer](//github.com/cemeyer) for [kicking this off](//github.com/cernekee/stoken/issues/27)
-  and doing most of the heavy lifting, including a working
-  [`ct_kip_prf_aes` implementation](//gist.github.com/cemeyer/3293e4fcb3013c4ee2d1b6005e0561bf)
-  and figuring out [all the mistakes](//github.com/cernekee/stoken/issues/27#issuecomment-456522178)
-  in RSA's atrociously sloppy and misleading [RFC4758](//tools.ietf.org/html/rfc4758).
+  and doing most of the heavy lifting, including figuring out
+  [all the mistakes](//github.com/cernekee/stoken/issues/27#issuecomment-456522178)
+  in RSA's atrociously sloppy and misleading [RFC4758](//tools.ietf.org/html/rfc4758), and writing
+  a [bug-for-bug matching `ct_kip_prf_aes` implementation](//gist.github.com/cemeyer/3293e4fcb3013c4ee2d1b6005e0561bf)
+  based on it.
 * [@rgerganov](//github.com/rgerganov) for
   [reverse engineering the official client](//github.com/cernekee/stoken/issues/27#issuecomment-456113939) and
   testing.
 * [@cernekee](//github.com/cernekee) for writing `stoken` in the first place, and for explaining how to
   [convert a raw seed into a token](https://github.com/cernekee/stoken/issues/27#issuecomment-456473711).
+* Future time traveler who travels back to 2006, and convinces RSA that they are objectively bad
+  at designing protocols and should never do it for any reason whatsoever.
 
 TODO
 ====
