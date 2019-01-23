@@ -11,7 +11,7 @@ from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 
 from textwrap import fill
-from common import hexlify, unhexlify, d64b, e64b, e64s, e64bs, d64s, d64sb
+from common import hexlify, unhexlify, d64b, e64b, e64s, e64bs, d64s, d64sb, ns
 from ct_kip_prf_aes import ct_kip_prf_aes
 
 #####
@@ -36,12 +36,6 @@ app.config.update(
     HOST='localhost',
 )
 
-ns = {
-    'soapenv': 'http://schemas.xmlsoap.org/soap/envelope/',
-    'ctkip': 'http://ctkipservice.rsasecurity.com',
-    'ns0': 'http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#',
-}
-
 ########################################
 
 # Handle the gawdaful SOAPy layer on the outside
@@ -56,7 +50,7 @@ def unsoap():
         x = ET.fromstring(request.data.decode())
         assert x.tag == '{http://schemas.xmlsoap.org/soap/envelope/}Envelope'
 
-        cr = x.find('.//ctkip:ClientRequest', ns)
+        cr = x.find('soapenv:Body/ctkip:ClientRequest', ns)
         ad = cr.find('ctkip:AuthData', ns)
         assert ad.text == auth
         pd = cr.find('ctkip:ProvisioningData', ns)
@@ -144,10 +138,10 @@ def handle_ClientHello(sess, pdx, rx):
 
 def handle_ClientNonce(sess, pdx, rx):
     # The client parrots our nonce back to us (a server with REEL SECURITEH would check that it matches, I guess...?)
-    R_S = d64b(rx.find('.//Extensions/Extension/Data', ns).text)
+    R_S = d64b(rx.find('Extensions/Extension/Data', ns).text)
 
     # Decrypt the ClientNonce (this will be the token secret)
-    R_C_enc = d64b(rx.find('.//EncryptedNonce', ns).text)
+    R_C_enc = d64b(rx.find('EncryptedNonce', ns).text)
     print("ENcrypted ClientNonce: {}".format(hexlify(R_C_enc)))
     R_C = cipher.decrypt(R_C_enc)
     print("DEcrypted ClientNonce: {}".format(hexlify(R_C)))
