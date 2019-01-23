@@ -83,10 +83,8 @@ Client sent:
         sess = rx.attrib.get('SessionID')
         if rx.tag == '{http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#}ClientHello':
             res_pd, res_r = handle_ClientHello(sess, pdx, rx)
-            compr = False
         elif rx.tag == '{http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#}ClientNonce':
             res_pd, res_r = handle_ClientNonce(sess, pdx, rx)
-            compr = True
 
         r = Response(mimetype='text/xml; charset=utf-8', response='''<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><soapenv:Body><ServerResponse xmlns="http://ctkipservice.rsasecurity.com"><AuthData>{auth}</AuthData><ProvisioningData>{pd}
 </ProvisioningData><Response>{res}
@@ -95,7 +93,6 @@ Client sent:
                               res=fill(e64s(res_r), 78))
         )
         r.headers['X-Powered-By'] = 'Servlet/3.0 JSP/2.2'
-        setattr(r, 'allow_compression', compr)
 
         print("""
 Server will send:
@@ -185,29 +182,6 @@ def handle_ClientNonce(sess, pdx, rx):
 
 ########################################
 
-class Deflate(object):
-    def __init__(self, app, compress_level=6, minimum_size=500):
-        self.app = app
-        self.compress_level = compress_level
-        self.minimum_size = minimum_size
-        self.app.after_request(self.after_request)
-
-    def after_request(self, response):
-        if response.status_code < 200 or \
-           response.status_code >= 300 or \
-           response.direct_passthrough or \
-           not getattr(response, 'allow_compression', True) or \
-           len(response.data) < self.minimum_size or \
-           'Content-Encoding' in response.headers:
-            return response
-
-        response.data = zlib.compress(response.data, self.compress_level)
-        response.headers['Content-Encoding'] = 'deflate'
-        response.headers['Content-Length'] = len(response.data)
-        return response
-
-
-Deflate(app)
 app.run(host=app.config['HOST'],
         port=app.config['PORT'],
         debug=True,
