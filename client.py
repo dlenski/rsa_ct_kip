@@ -74,7 +74,7 @@ class Soapifier(object):
 
 pd='''<?xml version="1.0"?><ProvisioningData><Version>5.0.2.440</Version><Manufacturer>RSA Security Inc.</Manufacturer><FormFactor/></ProvisioningData>'''
 req1='''<ClientHello xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Version="1.0"><SupportedKeyTypes xmlns=""><Algorithm xsi:type="xsd:anyURI">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/09/otps-wst#SecurID-AES</Algorithm></SupportedKeyTypes><SupportedEncryptionAlgorithms xmlns=""><Algorithm xsi:type="xsd:anyURI">http://www.w3.org/2001/04/xmlenc#rsa-1_5</Algorithm></SupportedEncryptionAlgorithms><SupportedMACAlgorithms xmlns=""><Algorithm xsi:type="xsd:anyURI">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#ct-kip-prf-aes</Algorithm></SupportedMACAlgorithms></ClientHello>'''
-req2_tmpl='''<?xml version="1.0" encoding="UTF-8"?><ClientNonce xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#" Version="1.0" SessionID="{session_id}"><EncryptedNonce xmlns="">{encrypted_client_nonce}</EncryptedNonce><Extensions xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Extension xmlns="" xmlns:ct-kip="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Data>{server_nonce}</Data></Extension></Extensions></ClientNonce>'''
+req2_tmpl='''<?xml version="1.0" encoding="UTF-8"?><ClientNonce xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#" Version="1.0" SessionID="{session_id}"><EncryptedNonce xmlns="">{eR_C}</EncryptedNonce><Extensions xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Extension xmlns="" xmlns:ct-kip="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Data>{R_S}</Data></Extension></Extensions></ClientNonce>'''
 
 p = argparse.ArgumentParser()
 p.add_argument('-v', '--verbose', action='count')
@@ -106,25 +106,23 @@ k = res1.find('EncryptionKey/dsig:KeyValue/dsig:RSAKeyValue', ns)
 mod = number.bytes_to_long(d64sb(k.find('dsig:Modulus', ns).text))
 exp = number.bytes_to_long(d64sb(k.find('dsig:Exponent', ns).text))
 pubk = RSA.construct( (int(mod), int(exp)) )
-R_S = server_nonce = d64sb(res1.find('Payload/Nonce').text)
+R_S = d64sb(res1.find('Payload/Nonce').text)
 
 print("Received ServerHello response with server nonce (R_S = {}) and {}-bit RSA public key".format(
-    hexlifys(server_nonce), len(number.long_to_bytes(pubk.n))*8))
+    hexlifys(R_S), len(number.long_to_bytes(pubk.n))*8))
 
 # generate and encrypt client nonce
 # The XML blobs in the protocol appear to indicate
 # RSAES-PKCS1-v1_5 (RFC8017), but it's actually RSAES-OAEP (RFC8017)
-R_C = client_nonce = get_random_bytes(16)
-print("Generated client nonce (R_C = {})".format(hexlifys(client_nonce)))
+R_C = get_random_bytes(16)
+print("Generated client nonce (R_C = {})".format(hexlifys(R_C)))
 cipher = PKCS1_OAEP.new(pubk)
-encrypted_client_nonce = cipher.encrypt(client_nonce)
+eR_C = cipher.encrypt(R_C)
 if args.verbose:
-    print("Encrypted client nonce with server's RSA public key: {}".format(hexlifys(encrypted_client_nonce)))
+    print("Encrypted client nonce with server's RSA public key: {}".format(hexlifys(eR_C)))
 
 # send second request
-req2_filled = req2_tmpl.format(
-  session_id=session_id, encrypted_client_nonce=e64bs(encrypted_client_nonce),
-  server_nonce=e64bs(server_nonce))
+req2_filled = req2_tmpl.format(session_id=session_id, eR_C=e64bs(eR_C), R_S=e64bs(R_S))
 req2 = soap.make_ClientRequest('ServerFinished', pd, req2_filled)
 print("Sending ServerFinished request to server, with encrypted client nonce...")
 raw_res2 = s.send(s.prepare_request(req2))
