@@ -127,7 +127,7 @@ print("Got key ID, token ID, key expiration date, and MAC:"
         key_id, token_id, key_exp))
 
 # verify MAC and token
-K_TOKEN = ct_kip_prf_aes(client_nonce, number.long_to_bytes(pubk.n), b"Key generation", R_S)
+K_TOKEN = ct_kip_prf_aes(R_C, number.long_to_bytes(pubk.n), b"Key generation", R_S)
 MAC = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
 if MAC==mac:
     print("MAC verified. Token seed is: {}".format(hexlify(K_TOKEN)))
