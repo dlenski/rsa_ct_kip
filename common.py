@@ -15,6 +15,8 @@ def d64s(x):
   return d64b(x.encode()).decode()
 def d64sb(x):
   return d64b(x.encode())
+def hexlifys(x):
+  return hexlify(x).decode()
 
 # XML namespaces used in exchange:
 
