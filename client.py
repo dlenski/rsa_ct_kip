@@ -67,7 +67,7 @@ req2_tmpl='''<?xml version="1.0" encoding="UTF-8"?><ClientNonce xmlns="http://ww
 
 p = argparse.ArgumentParser()
 p.add_argument('-v', '--verbose', action='count')
-p.add_argument('-k', '--no-verify', dest='verify', action='store_false', default=True, help="Don't verify server cert")
+p.add_argument('-k', '--no-verify', dest='verify', action='store_false', default=True, help="Don't verify server TLS cert")
 p.add_argument('url')
 p.add_argument('activation_code')
 args = p.parse_args()
@@ -128,6 +128,8 @@ print("Got key ID, token ID, key expiration date, and MAC:"
 
 # verify MAC and token
 K_TOKEN = ct_kip_prf_aes(R_C, number.long_to_bytes(pubk.n), b"Key generation", R_S)
-MAC = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
-if MAC==mac:
-    print("MAC verified. Token seed is: {}".format(hexlify(K_TOKEN)))
+MAC_VER = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
+if MAC_VER==mac:
+    print("MAC verified. K_TOKEN is: {}".format(hexlify(K_TOKEN)))
+else:
+    print("MAC not verified! Expected {} but server sent {}".format(hexlify(MAC_VER), hexlify(mac)))
