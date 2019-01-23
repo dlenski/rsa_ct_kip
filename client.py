@@ -9,7 +9,7 @@ from Crypto.Util import number
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 
-from common import e64b, e64s, d64s, d64b, d64sb, hexlify, unhexlify
+from common import e64b, e64s, d64s, d64b, d64sb, hexlify, hexlifys, ns
 from ct_kip_prf_aes import ct_kip_prf_aes
 
 ########################################
@@ -44,18 +44,18 @@ class Soapifier(object):
         outer, inner = 'ServerResponse', 'Response'
 
         x = ET.fromstring(response.content)
-        fault = x.find('.//{http://schemas.xmlsoap.org/soap/envelope/}Fault')
+        fault = x.find('.//soapenv:Fault', ns)
         if fault is not None:
             faultcode = fault.find('faultcode').text
             faultstring = fault.find('faultstring').text
             raise RuntimeError(faultcode, faultstring)
 
         assert x.tag == '{http://schemas.xmlsoap.org/soap/envelope/}Envelope'
-        r = x.find('.//{http://ctkipservice.rsasecurity.com}' + outer)
-        ad = r.find('{http://ctkipservice.rsasecurity.com}AuthData')
+        r = x.find('soapenv:Body/ctkip:' + outer, ns)
+        ad = r.find('ctkip:AuthData', ns)
         assert ad.text == self.auth #== response.headers.get('Authorization')
-        pd = r.find('{http://ctkipservice.rsasecurity.com}ProvisioningData')
-        rr = r.find('{http://ctkipservice.rsasecurity.com}' + inner)
+        pd = r.find('ctkip:ProvisioningData', ns)
+        rr = r.find('ctkip:' + inner, ns)
 
         return ET.fromstring(d64s(pd.text)), ET.fromstring(d64s(rr.text))
 
@@ -88,13 +88,11 @@ if args.verbose:
     print(res1)
 
 session_id = res1.attrib['SessionID']
-k = res1.find('.//{http://www.w3.org/2000/09/xmldsig#}RSAKeyValue')
-mod = number.bytes_to_long(d64sb(k.find(
-  '{http://www.w3.org/2000/09/xmldsig#}Modulus').text))
-exp = number.bytes_to_long(d64sb(k.find(
-  '{http://www.w3.org/2000/09/xmldsig#}Exponent').text))
+k = res1.find('EncryptionKey/dsig:KeyValue/dsig:RSAKeyValue', ns)
+mod = number.bytes_to_long(d64sb(k.find('dsig:Modulus', ns).text))
+exp = number.bytes_to_long(d64sb(k.find('dsig:Exponent', ns).text))
 pubk = RSA.construct( (int(mod), int(exp)) )
-pl = res1.find('.//Payload')
+pl = res1.find('Payload')
 R_S = server_nonce = d64sb(pl.find('Nonce').text)
 
 print("Got server nonce and RSA pubkey:\n{}\n{}".format(

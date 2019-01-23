@@ -15,3 +15,12 @@ def d64s(x):
   return d64b(x.encode()).decode()
 def d64sb(x):
   return d64b(x.encode())
+
+# XML namespaces used in exchange:
+
+ns = {
+    'soapenv': 'http://schemas.xmlsoap.org/soap/envelope/',
+    'ctkip': 'http://ctkipservice.rsasecurity.com',
+    'dsig': 'http://www.w3.org/2000/09/xmldsig#',
+    'otps': 'http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#',
+}
