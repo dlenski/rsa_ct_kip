@@ -62,7 +62,7 @@ def unsoap():
         pd = cr.find('ctkip:ProvisioningData', ns)
         r = cr.find('ctkip:Request', ns)
 
-        pdx = ET.fromstring(d64b(pd.text))
+        pdx = d64b(pd.text)
         rx = ET.fromstring(d64b(r.text))
 
         print("""
@@ -77,7 +77,7 @@ Client sent:
 
   Request:
   ====================
-  {}""".format(auth, ET.tostring(pdx).decode(), ET.tostring(rx).decode()))
+  {}""".format(auth, pdx.decode(), ET.tostring(rx).decode()))
 
         # respond to client
         sess = rx.attrib.get('SessionID')
@@ -127,7 +127,7 @@ def handle_ClientHello(sess, pdx, rx):
     # This is our "server nonce" which the client will parrot back to us, along with its (encrypted) "client nonce"
     R_S = get_random_bytes(16)
 
-    return ET.tostring(pdx).decode(), '''<?xml version="1.0" encoding="UTF-8"?><ServerHello xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" SessionID="{sess}" Status="Continue" Version="1.0"><KeyType xmlns="">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/09/otps-wst#SecurID-AES</KeyType>
+    return pdx.decode(), '''<?xml version="1.0" encoding="UTF-8"?><ServerHello xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" SessionID="{sess}" Status="Continue" Version="1.0"><KeyType xmlns="">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/09/otps-wst#SecurID-AES</KeyType>
 <EncryptionAlgorithm xmlns="">http://www.w3.org/2001/04/xmlenc#rsa-1_5</EncryptionAlgorithm>
 <EncryptionKey xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><ds:KeyValue xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><ds:RSAKeyValue xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><ds:Modulus>{mod}</ds:Modulus>
 <ds:Exponent>{exp}</ds:Exponent>
