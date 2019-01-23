@@ -55,6 +55,13 @@ Fake server
 
 The server (`fakeserver.py`) mimics a "real" RSA CT-KIP server and can
 be used for interoperability testing with a "real" RSA SecurID client.
+It accepts the requests sent by the client software at two different
+paths: `/` for laziness, and `/ctkip/services/CtkipService`
+in case any real client hard-codes this path.
+
+It provisions tokens with randomly-generated 12-digit IDs, which it does
+not retain. Official RSA SecurID clients for Windows and Android have
+been verified to connect to it, and provision tokens from its output.
 
 The server can run either via HTTP or HTTPS. For HTTPS, create a
 `server.pem` file in the same directory. It must contain a trusted,
@@ -76,5 +83,16 @@ Credits
 * [@rgerganov](//github.com/rgerganov) for
   [reverse engineering the official client](//github.com/cernekee/stoken/issues/27#issuecomment-456113939) and
   testing.
-* [@cernekee](//github.com/cernekee) for writing stoken in the first place, and for explaining how to
+* [@cernekee](//github.com/cernekee) for writing `stoken` in the first place, and for explaining how to
   [convert a raw seed into a token](https://github.com/cernekee/stoken/issues/27#issuecomment-456473711).
+
+TODO
+====
+
+* Convert raw seed into usable token _without_ invoking `stoken`?
+* Add tests: verify that `client.py` can talk to `fakeserver.py` and negotiate the same `K_TOKEN`.
+
+License
+=======
+
+[MIT](LICENSE.txt)
