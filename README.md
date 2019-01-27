@@ -18,6 +18,17 @@ Client needs Python **3.x**, PyCryptoDome, and requests. [stoken](//github.com/c
 
 Server needs Flask as well.
 
+Install with `pip3` to automatically fetch Python dependencies. (Note that on most systems, `pip` invokes the Python 2.x version, while `pip3` invokes the Python 3.x version.)
+
+```
+# Install latest development version
+$ pip3 install https://github.com/dlenski/rsa_ct_kip/archive/HEAD.zip
+
+# Install a tagged release
+# (replace "RELEASE" with one of the tag/release version numbers on the "Releases" page)
+$ pip3 install https://github.com/dlenski/rsa_ct_kip/archive/v0.3.zip
+```
+
 Provision token using client
 ============================
 
@@ -27,7 +38,7 @@ It will communicate with the RSA CT-KIP server and provision a token,
 then attempt to call `stoken` to convert the token to XML/.sdtid format:
 
 ```
-$ ./client.py https://server.company.com:443/ctkip/services/CtkipService ACTIVATION_CODE template.xml
+$ rsa_ct_kip https://server.company.com:443/ctkip/services/CtkipService ACTIVATION_CODE template.xml
 Sending ClientHello request to server...
 Received ServerHello response with server nonce (R_S = 28198dbe2c18a00335179cc5bb4eff3a) and 1024-bit RSA public key
 Generated client nonce (R_C = 12bec1a6f4d09470986b485561c4d2b5)
@@ -56,7 +67,7 @@ $ stoken export --random --sdtid --template=template.xml > 838999658504.sdtid
 Fake server
 ===========
 
-The server (`fakeserver.py`) mimics a "real" RSA CT-KIP server and can
+The server (invoked with `python3 -m rsa_ct_kip.fakeserver`) mimics a "real" RSA CT-KIP server and can
 be used for interoperability testing with a "real" RSA SecurID client.
 It accepts the requests sent by the client software at two different
 paths: `/` for laziness, and `/ctkip/services/CtkipService`

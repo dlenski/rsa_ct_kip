@@ -9,8 +9,8 @@ from Crypto.Util import number
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 
-from common import hexlify, unhexlify, d64b, e64b, e64s, e64bs, d64s, d64sb, ns
-from ct_kip_prf_aes import ct_kip_prf_aes
+from rsa_ct_kip.common import hexlify, unhexlify, d64b, e64b, e64s, e64bs, d64s, d64sb, ns
+from rsa_ct_kip.ct_kip_prf_aes import ct_kip_prf_aes
 
 #####
 # Yay, encryption
