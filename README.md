@@ -1,3 +1,5 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 What is this for?
 =================
 
@@ -8,15 +10,16 @@ have been given an activation code and a URL like
 provision the token and save it in a format that you can use with
 [stoken](//github.com/cernekee/stoken).
 
-If you use the RSA's official software to provision the token, it will obscure the
-token seed to prevent you from copying it to another computer.
+If you use the RSA's official software (RSA SecurID) to provision the
+token, it will obscure the token seed to prevent you from copying it
+to another computer:
+
+![\"Import from Web\" dialog in RSA SecurID for Windows](Import_from_Web_in_RSA_SecurID.png)
 
 Requirements
 ============
 
-Client needs Python **3.x**, PyCryptoDome, and requests. [stoken](//github.com/cernekee/stoken) is needed to save the resulting tokens in a usable format.
-
-Server needs Flask as well.
+Client needs Python **3.x**, PyCryptoDome, and requests (which will be automatically installed with `pip`). [stoken](//github.com/cernekee/stoken) is needed to save the resulting tokens in a usable format. Running the [fake server](#fake-server) requires Flask as well.
 
 Install with `pip3` to automatically fetch Python dependencies. (Note that on most systems, `pip` invokes the Python 2.x version, while `pip3` invokes the Python 3.x version.)
 
