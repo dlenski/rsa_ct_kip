@@ -15,5 +15,6 @@ setup(name="rsa_ct_kip",
       license='MIT',
       url="https://github.com/dlenski/rsa_ct_kip",
       packages=["rsa_ct_kip"],
+      install_requires=['pycryptodome>=3.4.7', 'requests>=2.0'],
       entry_points={ 'console_scripts': [ 'rsa_ct_kip=rsa_ct_kip.client:main' ] }
       )
