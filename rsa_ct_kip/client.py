@@ -139,6 +139,8 @@ def main(args=None):
     req2 = soap.make_ClientRequest('ServerFinished', pd, req2_filled)
     print("Sending ServerFinished request to server, with encrypted client nonce...")
     raw_res2 = s.send(s.prepare_request(req2))
+    if args.verbose:
+        print(raw_res2.text)
     pd_res2, res2 = soap.parse_ServerResponse(raw_res2)
     if args.verbose:
         print(res2)
