@@ -112,7 +112,7 @@ def main(args=None):
         print(raw_res1.text)
     pd_res1, res1 = soap.parse_ServerResponse(raw_res1)
     if args.verbose:
-        print(res1)
+        print(ET.tostring(res1))
 
     session_id = res1.attrib['SessionID']
     k = res1.find('EncryptionKey/dsig:KeyValue/dsig:RSAKeyValue', ns)
@@ -143,7 +143,7 @@ def main(args=None):
         print(raw_res2.text)
     pd_res2, res2 = soap.parse_ServerResponse(raw_res2)
     if args.verbose:
-        print(res2)
+        print(ET.tostring(res2))
 
     # get stuff from response
     service_id = get_text(res2.find('ServiceID'))
