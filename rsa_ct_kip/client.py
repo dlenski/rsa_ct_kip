@@ -156,9 +156,9 @@ def main(args=None):
     add_pin = get_text(pd_res2.find('AddPIN'), int, 1)
     otpext = res2.find('Extensions/Extension')
     if otpext:
-        otpformat = get_text(res2.find('OTPFormat'), default='Decimal')
-        otplength = get_text(res2.find('OTPLength'), int, 8)
-        otptime = get_text(res2.find('otps:OTPMode/otps:Time', ns), int, 60, lambda n: n.attrib.get('TimeInterval'))
+        otpformat = get_text(otpext.find('OTPFormat'), default='Decimal')
+        otplength = get_text(otpext.find('OTPLength'), int, 8)
+        otptime = get_text(otpext.find('otps:OTPMode/otps:Time', ns), int, 60, lambda n: n.attrib.get('TimeInterval'))
     else:
         otpformat, otplength, otptime = 'Decimal', 8, 60
 
