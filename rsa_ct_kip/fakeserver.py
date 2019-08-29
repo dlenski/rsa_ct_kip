@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import ssl
 import random
+import os
 from datetime import datetime, timedelta
 from flask import Flask, request, abort, Response
 from xml.etree import ElementTree as ET
@@ -16,16 +17,17 @@ from rsa_ct_kip.ct_kip_prf_aes import ct_kip_prf_aes
 # Yay, encryption
 #####
 
+here = os.path.abspath(os.path.dirname(__file__))
 try:
     context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
     context.load_cert_chain('server.pem')
     port = 4443
 except Exception as e:
-    print("Couldn't load server.pem: will run as plain HTTP, not HTTPS")
+    print("Couldn't load server.pem from current directory: will run as plain HTTP, not HTTPS")
     context = None
     port = 8080
 
-privk = RSA.importKey(open('rsaprivkey.pem').read())
+privk = RSA.importKey(open(os.path.join(here, '..', 'rsaprivkey.pem')).read())
 pubk = privk.publickey()
 
 # The XML blobs in the protocol appear to indicate
