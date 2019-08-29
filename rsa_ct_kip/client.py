@@ -197,6 +197,9 @@ def main(args=None):
                 print("WARNING: Failed to save token to XML/.sdtid format with stoken. See template.")
             else:
                 f = None
+                if args.verbose:
+                    ctf = subprocess.check_output([stoken, 'export', '--file', args.filename.name], universal_newlines=True).strip()
+                    print("  Token in CTF format: {}".format(ctf))
                 print("Saved token in XML/.sdtid format to {}".format(args.filename.name))
         if f:
             print("Saved template to {}. Working stoken is needed to convert it to XML/.sdtid format:".format(f.name))
