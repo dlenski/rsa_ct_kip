@@ -100,7 +100,7 @@ There are numerous problems with this protocol:
 * The only "existing implementations" are in RSA's closed-source software. I use scare quotes because
   the actual implementations [use algorithms that differ in several ways](//github.com/cernekee/stoken/issues/27#issuecomment-456522178),
   making it impossible to interoperate without reverse-engineering.
-* The exchange is wrapped in several unnecessary layers of base64+XML+SOAP terribleness… but tThe official
+* The exchange is wrapped in several unnecessary layers of base64+XML+SOAP terribleness… but the official
   RSA clients _don't really parse XML_: they just pretend to, and get confused by whitespace differences
   and similar trivialities.
 * The protocol appears to be trying to solve the following problem,
