@@ -27,7 +27,7 @@ except Exception as e:
     context = None
     port = 8080
 
-privk = RSA.importKey(open(os.path.join(here, '..', 'rsaprivkey.pem')).read())
+privk = RSA.importKey(open(os.path.join(here, 'rsaprivkey.pem')).read())
 pubk = privk.publickey()
 
 # The XML blobs in the protocol appear to indicate
