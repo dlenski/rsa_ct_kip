@@ -55,6 +55,8 @@ class Soapifier(object):
 
     def parse_ServerResponse(self, response):
         outer, inner = 'ServerResponse', 'Response'
+        cruft = 'java.rmi.RemoteException: The CT-KIP Web Service failed to process a client request.'
+        nested = 'nested exception is:'
 
         response.raise_for_status()
         x = ET.fromstring(response.content)
@@ -62,7 +64,13 @@ class Soapifier(object):
         if fault is not None:
             faultcode = fault.find('faultcode').text
             faultstring = fault.find('faultstring').text
-            raise RuntimeError(faultcode, faultstring)
+            if faultcode == 'soapenv:Server.userException' and faultstring.startswith(cruft):
+                rest = faultstring[len(cruft):].lstrip()
+                if nested in rest:
+                    rest = rest[rest.index(nested) + len(nested):].lstrip()
+                exc, msg = rest.split(': ', 1)
+                raise RuntimeError(exc, msg, faultstring)
+            raise RuntimeError(faultcode, faultstring, None)
 
         assert x.tag == '{http://schemas.xmlsoap.org/soap/envelope/}Envelope'
         r = x.find('soapenv:Body/ctkip:' + outer, ns)
@@ -116,8 +124,11 @@ def main(args=None):
     except requests.exceptions.RequestException as e:
         p.exit(1, "Exception in HTTP(S) request: {}\n\t{}\n".format(e.__class__.__name__, '\n\t'.join(e.args)))
     except RuntimeError as e:
-        c, s = e.args
-        p.exit(1, "Fault response from server: {}: {}\n".format(c, s))
+        code, msg, raw = e.args
+        if raw is None:
+            p.exit(1, "Fault from server: {}\n\t{}\n".format(code, msg))
+        else:
+            p.exit(1, "Fault from server:\n\t{}\n\nParsed exception:\n\t{}: {}\n".format(raw, code, msg))
     if args.verbose:
         print(ET.tostring(res1))
 
@@ -153,8 +164,11 @@ def main(args=None):
     except requests.exceptions.RequestException as e:
         p.exit(1, "Exception in HTTP(S) request: {}\n\t{}\n".format(e.__class__.__name__, '\n\t'.join(e.args)))
     except RuntimeError as e:
-        c, s = e.args
-        p.exit(1, "Fault response from server: {}: {}\n".format(c, s))
+        code, msg, raw = e.args
+        if raw is None:
+            p.exit(1, "Fault from server: {}\n\t{}\n".format(code, msg))
+        else:
+            p.exit(1, "Fault from server:\n\t{}\n\nParsed exception:\n\t{}: {}\n".format(raw, code, msg))
     if args.verbose:
         print(ET.tostring(res2))
 
