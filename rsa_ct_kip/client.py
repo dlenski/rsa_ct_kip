@@ -94,6 +94,7 @@ def parse_args(args=None):
     p = argparse.ArgumentParser()
     p.add_argument('-v', '--verbose', action='count')
     p.add_argument('-k', '--no-verify', dest='verify', action='store_false', default=True, help="Don't verify server TLS cert")
+    p.add_argument('-s', '--hide-secret', action='store_true', help="Don't print any secret values to console output. (Nonces and seed could be used to clone token.)")
     p.add_argument('url', help='Activation URL provided to you (often ends with /ctkip/services/CtkipService)')
     p.add_argument('activation_code', help='Normally 12 digits long')
     p.add_argument('filename', nargs='?', type=argparse.FileType('w'), help=(
@@ -140,13 +141,13 @@ def main(args=None):
     R_S = d64sb(res1.find('Payload/Nonce').text)
 
     print("Received ServerHello response with server nonce (R_S = {}) and {}-bit RSA public key".format(
-        hexlifys(R_S), len(number.long_to_bytes(pubk.n))*8))
+        'HIDDEN' if args.hide_secret else hexlifys(R_S), len(number.long_to_bytes(pubk.n))*8))
 
     # generate and encrypt client nonce
     # The XML blobs in the protocol appear to indicate
     # RSAES-PKCS1-v1_5 (RFC8017), but it's actually RSAES-OAEP (RFC8017)
     R_C = get_random_bytes(16)
-    print("Generated client nonce (R_C = {})".format(hexlifys(R_C)))
+    print("Generated client nonce (R_C = {})".format('HIDDEN' if args.hide_secret else hexlifys(R_C)))
     cipher = PKCS1_OAEP.new(pubk)
     eR_C = cipher.encrypt(R_C)
     if args.verbose:
@@ -205,7 +206,7 @@ def main(args=None):
     print("  Token User: {}".format(user))
     print("  Expiration date: {}".format(key_exp))
     print("  OTP mode: {} {}, every {} seconds".format(otplength, otpformat, otptime))
-    print("  Token seed: {}".format(hexlifys(K_TOKEN)))
+    print("  Token seed: {}".format('HIDDEN' if args.hide_secret else hexlifys(K_TOKEN)))
 
     if not args.filename:
         print("WARNING: Token has already been committed on server, even though you did not save it.")
@@ -224,7 +225,7 @@ def main(args=None):
                 print("WARNING: Failed to save token to XML/.sdtid format with stoken. See template.")
             else:
                 f = None
-                if args.verbose:
+                if args.verbose and not args.hide_secret:
                     ctf = subprocess.check_output([stoken, 'export', '--file', args.filename.name], universal_newlines=True).strip()
                     print("  Token in CTF format: {}".format(ctf))
                 print("Saved token in XML/.sdtid format to {}".format(args.filename.name))
