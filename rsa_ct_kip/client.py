@@ -214,8 +214,8 @@ def main(args=None):
         with (NamedTemporaryFile(mode='w', delete=False) if stoken else args.filename) as f:
             f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
             f.write('<TKNBatch>\n')
-            f.write('<TKNHeader><Origin>{}</Origin><DefPinType>{}</DefPinType><DefAddPin>{}</DefAddPin><DefDigits>{}</DefDigits><DefInterval>{}</DefInterval></TKNHeader>\n'.format(
-                service_id, pin_type, add_pin, otplength, otptime))
+            f.write('<TKNHeader><Origin>{}</Origin><DefPinType>{}</DefPinType><DefAddPin>{}</DefAddPin><DefDigits>{}</DefDigits><DefInterval>{}</DefInterval><Secret>{}</Secret></TKNHeader>\n'.format(
+                service_id, pin_type, add_pin, otplength, otptime, e64bs(K_TOKEN).strip()))
             f.write('<TKN><SN>{}</SN><UserLogin>{}</UserLogin><Death>{}</Death><Seed>={}</Seed></TKN>\n'.format(token_id, user, key_exp[:10].replace('-','/'), e64bs(K_TOKEN)))
             f.write('</TKNBatch>\n')
         if stoken:
