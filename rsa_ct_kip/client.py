@@ -56,6 +56,7 @@ class Soapifier(object):
     def parse_ServerResponse(self, response):
         outer, inner = 'ServerResponse', 'Response'
 
+        response.raise_for_status()
         x = ET.fromstring(response.content)
         fault = x.find('.//soapenv:Fault', ns)
         if fault is not None:
@@ -110,7 +111,13 @@ def main(args=None):
     raw_res1 = s.send(s.prepare_request(req1))
     if args.verbose:
         print(raw_res1.text)
-    pd_res1, res1 = soap.parse_ServerResponse(raw_res1)
+    try:
+        pd_res1, res1 = soap.parse_ServerResponse(raw_res1)
+    except requests.exceptions.RequestException as e:
+        p.exit(1, "Exception in HTTP(S) request: {}\n\t{}\n".format(e.__class__.__name__, '\n\t'.join(e.args)))
+    except RuntimeError as e:
+        c, s = e.args
+        p.exit(1, "Fault response from server: {}: {}\n".format(c, s))
     if args.verbose:
         print(ET.tostring(res1))
 
@@ -141,7 +148,13 @@ def main(args=None):
     raw_res2 = s.send(s.prepare_request(req2))
     if args.verbose:
         print(raw_res2.text)
-    pd_res2, res2 = soap.parse_ServerResponse(raw_res2)
+    try:
+        pd_res2, res2 = soap.parse_ServerResponse(raw_res2)
+    except requests.exceptions.RequestException as e:
+        p.exit(1, "Exception in HTTP(S) request: {}\n\t{}\n".format(e.__class__.__name__, '\n\t'.join(e.args)))
+    except RuntimeError as e:
+        c, s = e.args
+        p.exit(1, "Fault response from server: {}: {}\n".format(c, s))
     if args.verbose:
         print(ET.tostring(res2))
 
