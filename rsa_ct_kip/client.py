@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import requests
 import argparse
-import shutil, subprocess
+import shutil
+import subprocess
 from tempfile import NamedTemporaryFile
 from requests import Request
 from xml.etree import ElementTree as ET
@@ -10,8 +11,9 @@ from Crypto.Util import number
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 
-from .common import e64b, e64s, e64bs, d64s, d64b, d64sb, hexlify, hexlifys, unhexlify, ns
+from .common import e64s, e64bs, d64s, d64b, d64sb, hexlify, hexlifys, ns
 from .ct_kip_prf_aes import ct_kip_prf_aes
+
 
 ########################################
 
@@ -22,10 +24,11 @@ def get_text(node, convert=None, default=None, getter=None):
     if convert:
         try:
             return convert(text)
-        except:
+        except Exception:
             return default
     else:
         return text or default
+
 
 class Soapifier(object):
     soap_env_tmpl = '''<?xml version="1.0" encoding="UTF-8"?>
@@ -75,19 +78,21 @@ class Soapifier(object):
         assert x.tag == '{http://schemas.xmlsoap.org/soap/envelope/}Envelope'
         r = x.find('soapenv:Body/ctkip:' + outer, ns)
         ad = r.find('ctkip:AuthData', ns)
-        assert ad.text == self.auth #== response.headers.get('Authorization')
+        assert ad.text == self.auth  # == response.headers.get('Authorization')
         pd = r.find('ctkip:ProvisioningData', ns)
         rr = r.find('ctkip:' + inner, ns)
 
         return ET.fromstring(d64s(pd.text)), ET.fromstring(d64s(rr.text))
 
+
 ########################################
 
-pd='''<?xml version="1.0"?><ProvisioningData><Version>5.0.2.440</Version><Manufacturer>RSA Security Inc.</Manufacturer><FormFactor/></ProvisioningData>'''
-req1='''<ClientHello xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Version="1.0"><SupportedKeyTypes xmlns=""><Algorithm xsi:type="xsd:anyURI">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/09/otps-wst#SecurID-AES</Algorithm></SupportedKeyTypes><SupportedEncryptionAlgorithms xmlns=""><Algorithm xsi:type="xsd:anyURI">http://www.w3.org/2001/04/xmlenc#rsa-1_5</Algorithm></SupportedEncryptionAlgorithms><SupportedMACAlgorithms xmlns=""><Algorithm xsi:type="xsd:anyURI">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#ct-kip-prf-aes</Algorithm></SupportedMACAlgorithms></ClientHello>'''
-req2_tmpl='''<?xml version="1.0" encoding="UTF-8"?><ClientNonce xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#" Version="1.0" SessionID="{session_id}"><EncryptedNonce xmlns="">{eR_C}</EncryptedNonce><Extensions xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Extension xmlns="" xmlns:ct-kip="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Data>{R_S}</Data></Extension></Extensions></ClientNonce>'''
+pd = '''<?xml version="1.0"?><ProvisioningData><Version>5.0.2.440</Version><Manufacturer>RSA Security Inc.</Manufacturer><FormFactor/></ProvisioningData>'''
+req1 = '''<ClientHello xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Version="1.0"><SupportedKeyTypes xmlns=""><Algorithm xsi:type="xsd:anyURI">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/09/otps-wst#SecurID-AES</Algorithm></SupportedKeyTypes><SupportedEncryptionAlgorithms xmlns=""><Algorithm xsi:type="xsd:anyURI">http://www.w3.org/2001/04/xmlenc#rsa-1_5</Algorithm></SupportedEncryptionAlgorithms><SupportedMACAlgorithms xmlns=""><Algorithm xsi:type="xsd:anyURI">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#ct-kip-prf-aes</Algorithm></SupportedMACAlgorithms></ClientHello>'''
+req2_tmpl = '''<?xml version="1.0" encoding="UTF-8"?><ClientNonce xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#" Version="1.0" SessionID="{session_id}"><EncryptedNonce xmlns="">{eR_C}</EncryptedNonce><Extensions xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Extension xmlns="" xmlns:ct-kip="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Data>{R_S}</Data></Extension></Extensions></ClientNonce>'''
 
 stoken = shutil.which('stoken')
+
 
 def parse_args(args=None):
     global stoken
@@ -102,6 +107,7 @@ def parse_args(args=None):
         else 'Save a template file which can be converted to a token in XML/.sdtid format with stoken'))
     args = p.parse_args(args)
     return p, args
+
 
 def main(args=None):
     global stoken, pd, req1, req2_tmpl
@@ -137,11 +143,11 @@ def main(args=None):
     k = res1.find('EncryptionKey/dsig:KeyValue/dsig:RSAKeyValue', ns)
     mod = number.bytes_to_long(d64sb(k.find('dsig:Modulus', ns).text))
     exp = number.bytes_to_long(d64sb(k.find('dsig:Exponent', ns).text))
-    pubk = RSA.construct( (int(mod), int(exp)) )
+    pubk = RSA.construct((int(mod), int(exp)))
     R_S = d64sb(res1.find('Payload/Nonce').text)
 
     print("Received ServerHello response with server nonce (R_S = {}) and {}-bit RSA public key".format(
-        'HIDDEN' if args.hide_secret else hexlifys(R_S), len(number.long_to_bytes(pubk.n))*8))
+        'HIDDEN' if args.hide_secret else hexlifys(R_S), len(number.long_to_bytes(pubk.n)) * 8))
 
     # generate and encrypt client nonce
     # The XML blobs in the protocol appear to indicate
@@ -193,7 +199,7 @@ def main(args=None):
     # verify MAC and token
     K_TOKEN = ct_kip_prf_aes(R_C, number.long_to_bytes(pubk.n), b"Key generation", R_S)
     MAC_VER = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
-    if MAC_VER==mac:
+    if MAC_VER == mac:
         print("MAC verified ({})".format(hexlifys(MAC_VER)))
     else:
         print("ERROR: MAC not verified! Expected {} but server sent {}.".format(hexlifys(MAC_VER), hexlify(mac)))
@@ -212,11 +218,12 @@ def main(args=None):
         print("WARNING: Token has already been committed on server, even though you did not save it.")
     else:
         with (NamedTemporaryFile(mode='w', delete=False) if stoken else args.filename) as f:
+            K_TOKEN_b64 = e64bs(K_TOKEN).strip()
             f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
             f.write('<TKNBatch>\n')
             f.write('<TKNHeader><Origin>{}</Origin><DefPinType>{}</DefPinType><DefAddPin>{}</DefAddPin><DefDigits>{}</DefDigits><DefInterval>{}</DefInterval><Secret>{}</Secret></TKNHeader>\n'.format(
-                service_id, pin_type, add_pin, otplength, otptime, e64bs(K_TOKEN).strip()))
-            f.write('<TKN><SN>{}</SN><UserLogin>{}</UserLogin><Death>{}</Death><Seed>={}</Seed></TKN>\n'.format(token_id, user, key_exp[:10].replace('-','/'), e64bs(K_TOKEN)))
+                service_id, pin_type, add_pin, otplength, otptime, K_TOKEN_b64))
+            f.write('<TKN><SN>{}</SN><UserLogin>{}</UserLogin><Death>{}</Death><Seed>={}</Seed></TKN>\n'.format(token_id, user, key_exp[:10].replace('-', '/'), K_TOKEN_b64))
             f.write('</TKNBatch>\n')
         if stoken:
             try:
@@ -231,7 +238,8 @@ def main(args=None):
                 print("Saved token in XML/.sdtid format to {}".format(args.filename.name))
         if f:
             print("Saved template to {}. Working stoken is needed to convert it to XML/.sdtid format:".format(f.name))
-            print("  stoken export --random --sdtid --template={} > {}".format(f.name, args.filename.name if args.filename.name!=f.name else token_id+'.sdtid'))
+            print("  stoken export --random --sdtid --template={} > {}".format(f.name, args.filename.name if args.filename.name != f.name else token_id + '.sdtid'))
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     main()

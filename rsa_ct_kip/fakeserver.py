@@ -46,7 +46,7 @@ app.config.update(
 
 # Some ugly XML
 
-SOAP_WRAPPER='''<?xml version="1.0" encoding="UTF-8"?>
+SOAP_WRAPPER = '''<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <soapenv:Body>
     <ServerResponse xmlns="http://ctkipservice.rsasecurity.com">
@@ -57,7 +57,7 @@ SOAP_WRAPPER='''<?xml version="1.0" encoding="UTF-8"?>
   </soapenv:Body>
 </soapenv:Envelope>'''
 
-SERVER_HELLO='''<?xml version="1.0" encoding="UTF-8"?><ServerHello xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" SessionID="{sess}" Status="Continue" Version="1.0"><KeyType xmlns="">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/09/otps-wst#SecurID-AES</KeyType>
+SERVER_HELLO = '''<?xml version="1.0" encoding="UTF-8"?><ServerHello xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" SessionID="{sess}" Status="Continue" Version="1.0"><KeyType xmlns="">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/09/otps-wst#SecurID-AES</KeyType>
 <EncryptionAlgorithm xmlns="">http://www.w3.org/2001/04/xmlenc#rsa-1_5</EncryptionAlgorithm>
 <EncryptionKey xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><ds:KeyValue xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><ds:RSAKeyValue xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><ds:Modulus>{mod}</ds:Modulus>
 <ds:Exponent>{exp}</ds:Exponent>
@@ -72,7 +72,7 @@ SERVER_HELLO='''<?xml version="1.0" encoding="UTF-8"?><ServerHello xmlns="http:/
 <MacAlgorithm xmlns="">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#ct-kip-prf-aes</MacAlgorithm>
 </ServerHello>'''
 
-SERVER_FINISHED='''<?xml version="1.0" encoding="UTF-8"?><ServerFinished xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" SessionID="{sess}" Status="Success"><TokenID xmlns="">{tid}</TokenID>
+SERVER_FINISHED = '''<?xml version="1.0" encoding="UTF-8"?><ServerFinished xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" SessionID="{sess}" Status="Success"><TokenID xmlns="">{tid}</TokenID>
 <KeyID xmlns="">{tid}</KeyID>
 <KeyExpiryDate xmlns="">{exp}</KeyExpiryDate>
 <ServiceID xmlns="">RSA CT-KIP</ServiceID>
@@ -86,9 +86,9 @@ SERVER_FINISHED='''<?xml version="1.0" encoding="UTF-8"?><ServerFinished xmlns="
 <Mac xmlns="" MacAlgorithm="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#ct-kip-prf-aes" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">{MAC}</Mac>
 </ServerFinished>'''
 
-PROVISIONING_DATA='''<?xml version="1.0"?>\n<ProvisioningData>\n<PinType>0</PinType><AddPIN>1</AddPIN></ProvisioningData>\n'''
+PROVISIONING_DATA = '''<?xml version="1.0"?>\n<ProvisioningData>\n<PinType>0</PinType><AddPIN>1</AddPIN></ProvisioningData>\n'''
 
-CLIENT_SENT='''Client sent:
+CLIENT_SENT = '''Client sent:
   Authorization:
   ====================
   {}
@@ -101,7 +101,7 @@ CLIENT_SENT='''Client sent:
   ====================
   {}'''
 
-SERVER_SENDS='''Server will send:
+SERVER_SENDS = '''Server will send:
   ProvisioningData:
   ====================
   {}
@@ -117,6 +117,7 @@ SERVER_SENDS='''Server will send:
 ########################################
 
 # Handle the gawdaful SOAPy layer on the outside
+
 
 @app.route('/', methods=('POST',))
 @app.route('/ctkip/services/CtkipService', methods=('POST',))
@@ -146,7 +147,7 @@ def unsoap():
         elif rx.tag == '{http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#}ClientNonce':
             res_pd, res_r = handle_ClientNonce(sess, pdx, rx)
 
-        r = Response(mimetype='text/xml', response=SOAP_WRAPPER.format(auth=auth,pd=e64s(res_pd), res=e64s(res_r)))
+        r = Response(mimetype='text/xml', response=SOAP_WRAPPER.format(auth=auth, pd=e64s(res_pd), res=e64s(res_r)))
         r.headers['X-Powered-By'] = 'Servlet/3.0 JSP/2.2'
 
         print(SERVER_SENDS.format(res_pd, res_r, r.data.decode()), file=stderr)
@@ -158,6 +159,7 @@ def unsoap():
         abort(500)
 
 ########################################
+
 
 def handle_ClientHello(sess, pdx, rx):
     if sess is None:
@@ -183,14 +185,16 @@ def handle_ClientNonce(sess, pdx, rx):
 
     tid = '%012d' % random.randint(1, 999999999999)    # Random 12-digit decimal number
     exp = datetime.utcnow() + timedelta(days=365)
-    exp = exp.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()+'+00:00'  # ISO9601 datetime
+    exp = exp.replace(hour=0, minute=0, second=0, microsecond=0).isoformat() + '+00:00'  # ISO9601 datetime
 
     K_TOKEN = ct_kip_prf_aes(R_C, number.long_to_bytes(pubk.n), b"Key generation", R_S)
     MAC = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
+    print("\n\nNegotiated token:")
     print("K_TOKEN (hex): ", hexlify(K_TOKEN))
     print("MAC (hex): ", hexlify(MAC))
     print("Token ID: ", tid)
     print("Token expiration date: ", exp)
+    print("\n\n")
 
     return PROVISIONING_DATA, SERVER_FINISHED.format(
         tid = e64s(tid).rstrip(), exp=exp, sess=sess,
