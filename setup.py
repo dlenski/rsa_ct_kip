@@ -8,7 +8,7 @@ if sys.version_info < (3, 3):
     sys.exit("Python 3.3 or newer is required.")
 
 setup(name="rsa_ct_kip",
-      version="0.6",
+      version="0.7",
       description="Provision an RSA SecurID token with RSA's CT-KIP protocol",
       author="Daniel Lenski",
       author_email="dlenski@gmail.com",
