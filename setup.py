@@ -17,7 +17,8 @@ setup(name="rsa_ct_kip",
       packages=["rsa_ct_kip"],
       install_package_data=True,
       package_data={"rsa_ct_kip": ["rsaprivkey.pem"]},
-      install_requires=['pycryptodome>=3.4.7', 'requests>=2.0'],
+      install_requires=open('requirements.txt').readlines(),
+      tests_require=open('requirements-test.txt').readline(),
       entry_points={'console_scripts': ['rsa_ct_kip=rsa_ct_kip.client:main']},
       test_suite='nose.collector'
       )

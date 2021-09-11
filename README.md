@@ -1,4 +1,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://github.com/dlenski/rsa_ct_kip/workflows/build_and_test/badge.svg)](https://github.com/dlenski/rsa_ct_kip/actions?query=workflow%3Abuild_and_test)
+
 
 What is this for?
 =================
@@ -136,7 +138,7 @@ TODO
 ====
 
 * Convert raw seed into usable token _without_ invoking `stoken`?
-* Add tests: verify that `client.py` can talk to `fakeserver.py` and negotiate the same `K_TOKEN`.
+* Better `test_full_exchange`: verify that when `client.py` talks to `fakeserver.py`, they negotiate the same `K_TOKEN`.
 
 License
 =======

@@ -2,7 +2,7 @@
 import ssl
 import random
 import os
-from sys import stderr
+from sys import stderr  # noqa: F401
 from datetime import datetime, timedelta
 from flask import Flask, request, abort, Response
 from xml.etree import ElementTree as ET
@@ -11,23 +11,13 @@ from Crypto.Util import number
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 
-from rsa_ct_kip.common import hexlify, unhexlify, d64b, e64b, e64s, e64bs, d64s, d64sb, ns
+from rsa_ct_kip.common import hexlify, d64b, e64s, e64bs, ns
 from rsa_ct_kip.ct_kip_prf_aes import ct_kip_prf_aes
 
-#####
-# Yay, encryption
-#####
+########################################
 
+# Load the keys used as part of the RSA_CT_KIP exchange
 here = os.path.abspath(os.path.dirname(__file__))
-try:
-    context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-    context.load_cert_chain('server.pem')
-    port = 4443
-except Exception as e:
-    print("Couldn't load server.pem from current directory: will run as plain HTTP, not HTTPS")
-    context = None
-    port = 8080
-
 with open(os.path.join(here, 'rsaprivkey.pem')) as pk:
     privk = RSA.importKey(pk.read())
 pubk = privk.publickey()
@@ -35,14 +25,6 @@ pubk = privk.publickey()
 # The XML blobs in the protocol appear to indicate
 # RSAES-PKCS1-v1_5 (RFC8017), but it's actually RSAES-OAEP (RFC8017)
 cipher = PKCS1_OAEP.new(privk)
-
-########################################
-
-app = Flask(__name__)
-app.config.update(
-    PORT=port,
-    HOST='localhost',
-)
 
 ########################################
 
@@ -78,7 +60,7 @@ SERVER_FINISHED = '''<?xml version="1.0" encoding="UTF-8"?><ServerFinished xmlns
 <KeyID xmlns="">{tid}</KeyID>
 <KeyExpiryDate xmlns="">{exp}</KeyExpiryDate>
 <ServiceID xmlns="">RSA CT-KIP</ServiceID>
-<UserID xmlns=""/>
+<UserID xmlns="">{userid}</UserID>
 <Extensions xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Extension Critical="true" xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><OTPFormat>Decimal</OTPFormat>
 <OTPLength>8</OTPLength>
 <OTPMode xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Time TimeInterval="60" xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/>
@@ -120,6 +102,9 @@ SERVER_SENDS = '''Server will send:
 
 # Handle the gawdaful SOAPy layer on the outside
 
+app = Flask(__name__)
+
+
 @app.route('/', methods=('POST',))
 @app.route('/ctkip/services/CtkipService', methods=('POST',))
 def unsoap():
@@ -141,42 +126,56 @@ def unsoap():
         pdx = d64b(pd.text)
         rx = ET.fromstring(d64b(r.text))
 
-        print(CLIENT_SENT.format(auth, pdx.decode(), ET.tostring(rx).decode()), file=stderr)
+        # print(CLIENT_SENT.format(auth, pdx.decode(), ET.tostring(rx).decode()), file=stderr)
 
         # respond to client
         sess = rx.attrib.get('SessionID')
         if rx.tag == '{http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#}ClientHello':
-            res_pd, res_r = handle_ClientHello(sess, pdx, rx)
+            response = 'ServerHello'
+            res_pd, res_r, fields = handle_ClientHello(sess, pdx, rx)
         elif rx.tag == '{http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#}ClientNonce':
-            res_pd, res_r = handle_ClientNonce(sess, pdx, rx)
+            response = 'ServerFinished'
+            R_S = rx.find('Extensions/Extension/Data', ns).text
+            R_C = rx.find('EncryptedNonce', ns).text
+            print(dict(R_S=R_S, R_C=R_C))
+            res_pd, res_r, fields = handle_ClientNonce(sess, pdx, rx)
 
+        res_r = res_r.format(**fields)
         r = Response(mimetype='text/xml', response=SOAP_WRAPPER.format(auth=auth, pd=e64s(res_pd), res=e64s(res_r)))
         r.headers['X-Powered-By'] = 'Servlet/3.0 JSP/2.2'
 
-        print(SERVER_SENDS.format(res_pd, res_r, r.data.decode()), file=stderr)
+        # print(SERVER_SENDS.format(res_pd, res_r, r.data.decode()), file=stderr)
+        print("Fields sent in {} response: {}".format(response, fields), file=stderr)
 
         return r
 
     except Exception as e:
-        print(e)
+        print("Unexpected exception: ", e, file=stderr)
         abort(500)
+
 
 ########################################
 
 
 def handle_ClientHello(sess, pdx, rx):
+    # Interesting data that the client has sent? None whatsoever.
+    # What we send back? Session ID, our nonce (plaintext), our RSA key.
+
     if sess is None:
         sess = hexlify(get_random_bytes(17)).decode() + '-' + e64bs(get_random_bytes(56) + b'\0').rstrip()
 
     # This is our "server nonce" which the client will parrot back to us, along with its (encrypted) "client nonce"
     R_S = get_random_bytes(16)
 
-    return pdx.decode(), SERVER_HELLO.format(
+    return pdx.decode(), SERVER_HELLO, dict(
         sess = sess, R_S = e64bs(R_S).rstrip(),
         mod = e64bs(number.long_to_bytes(pubk.n)).rstrip(),
         exp = e64bs(number.long_to_bytes(pubk.e)).rstrip() )
 
 def handle_ClientNonce(sess, pdx, rx):
+    # Interesting data that the client has sent? Our nonce (parroted back) and their nonce (encrypted with our RSA key)
+    # What we send back? Session ID, MAC, and a bunch of standard token config info (ID, expiration date, number of digits, etc.)
+
     # The client parrots our nonce back to us (a server with REEL SECURITEH would check that it matches, I guess...?)
     R_S = d64b(rx.find('Extensions/Extension/Data', ns).text)
 
@@ -187,6 +186,7 @@ def handle_ClientNonce(sess, pdx, rx):
     print("DEcrypted ClientNonce: {}".format(hexlify(R_C)))
 
     tid = '%012d' % random.randint(1, 999999999999)    # Random 12-digit decimal number
+    userid = 'u%05d' % random.randint(1, 9999)         # Random 5-digit decimal number
     exp = datetime.utcnow() + timedelta(days=365)
     exp = exp.replace(hour=0, minute=0, second=0, microsecond=0).isoformat() + '+00:00'  # ISO9601 datetime
 
@@ -199,13 +199,20 @@ def handle_ClientNonce(sess, pdx, rx):
     print("    Token expiration date: ", exp)
     print("\n\n")
 
-    return PROVISIONING_DATA, SERVER_FINISHED.format(
-        tid = e64s(tid).rstrip(), exp=exp, sess=sess,
-        MAC = e64bs(MAC).rstrip())
+    return PROVISIONING_DATA, SERVER_FINISHED, dict(
+        userid=userid, tid=e64s(tid).rstrip(), exp=exp, sess=sess, MAC=e64bs(MAC).rstrip())
+
+
 
 ########################################
 
-app.run(host=app.config['HOST'],
-        port=app.config['PORT'],
-        debug=True,
-        ssl_context=context)
+if __name__ == '__main__':
+    try:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        context.load_cert_chain('server.pem')
+        port = 4443
+    except Exception as e:
+        print("Couldn't load server.pem from current directory: will run as plain HTTP, not HTTPS")
+        context = None
+        port = 8080
+    app.run(host='localhost', port=port, debug=True, ssl_context=context)
