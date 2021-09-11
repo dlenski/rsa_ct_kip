@@ -91,11 +91,9 @@ pd = '''<?xml version="1.0"?><ProvisioningData><Version>5.0.2.440</Version><Manu
 req1 = '''<ClientHello xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Version="1.0"><SupportedKeyTypes xmlns=""><Algorithm xsi:type="xsd:anyURI">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/09/otps-wst#SecurID-AES</Algorithm></SupportedKeyTypes><SupportedEncryptionAlgorithms xmlns=""><Algorithm xsi:type="xsd:anyURI">http://www.w3.org/2001/04/xmlenc#rsa-1_5</Algorithm></SupportedEncryptionAlgorithms><SupportedMACAlgorithms xmlns=""><Algorithm xsi:type="xsd:anyURI">http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#ct-kip-prf-aes</Algorithm></SupportedMACAlgorithms></ClientHello>'''
 req2_tmpl = '''<?xml version="1.0" encoding="UTF-8"?><ClientNonce xmlns="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/11/ct-kip#" Version="1.0" SessionID="{session_id}"><EncryptedNonce xmlns="">{eR_C}</EncryptedNonce><Extensions xmlns="" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Extension xmlns="" xmlns:ct-kip="http://www.rsasecurity.com/rsalabs/otps/schemas/2005/12/ct-kip#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Data>{R_S}</Data></Extension></Extensions></ClientNonce>'''
 
-stoken = shutil.which('stoken')
-
 
 def parse_args(args=None):
-    global stoken
+    stoken = shutil.which('stoken')
     p = argparse.ArgumentParser()
     p.add_argument('-v', '--verbose', action='count')
     p.add_argument('-k', '--no-verify', dest='verify', action='store_false', default=True, help="Don't verify server TLS cert")
@@ -106,17 +104,19 @@ def parse_args(args=None):
         'Save token in XML/.sdtid format (uses stoken found in path)' if stoken
         else 'Save a template file which can be converted to a token in XML/.sdtid format with stoken'))
     args = p.parse_args(args)
-    return p, args
+    return p, args, stoken
 
 
-def main(args=None):
-    global stoken, pd, req1, req2_tmpl
-    p, args = parse_args(args)
+def exchange(url, activation_code, verify=None, verbose=None, hide_secret=None, session=None):
+    global pd, req1, req2_tmpl
 
-    s = requests.session()
-    s.verify = args.verify
-    s.headers['user-agent'] = 'HTTPPOST'
-    soap = Soapifier(args.url, args.activation_code)
+    if session:
+        s = session
+    else:
+        s = requests.session()
+        s.verify = verify
+        s.headers['user-agent'] = 'HTTPPOST'
+    soap = Soapifier(url, activation_code)
 
     # send initial request
     req1 = soap.make_ClientRequest('StartService', pd, req1)
@@ -124,19 +124,10 @@ def main(args=None):
     # get session ID, server key, and server nonce in response
     print("Sending ClientHello request to server...")
     raw_res1 = s.send(s.prepare_request(req1))
-    if args.verbose:
+    if verbose:
         print(raw_res1.text)
-    try:
-        pd_res1, res1 = soap.parse_ServerResponse(raw_res1)
-    except requests.exceptions.RequestException as e:
-        p.exit(1, "Exception in HTTP(S) request: {}\n\t{}\n".format(e.__class__.__name__, '\n\t'.join(e.args)))
-    except RuntimeError as e:
-        code, msg, raw = e.args
-        if raw is None:
-            p.exit(1, "Fault from server: {}\n\t{}\n".format(code, msg))
-        else:
-            p.exit(1, "Fault from server:\n\t{}\n\nParsed exception:\n\t{}: {}\n".format(raw, code, msg))
-    if args.verbose:
+    pd_res1, res1 = soap.parse_ServerResponse(raw_res1)
+    if verbose:
         print(ET.tostring(res1))
 
     session_id = res1.attrib['SessionID']
@@ -147,16 +138,16 @@ def main(args=None):
     R_S = d64sb(res1.find('Payload/Nonce').text)
 
     print("Received ServerHello response with server nonce (R_S = {}) and {}-bit RSA public key".format(
-        'HIDDEN' if args.hide_secret else hexlifys(R_S), len(number.long_to_bytes(pubk.n)) * 8))
+        'HIDDEN' if hide_secret else hexlifys(R_S), len(number.long_to_bytes(pubk.n)) * 8))
 
     # generate and encrypt client nonce
     # The XML blobs in the protocol appear to indicate
     # RSAES-PKCS1-v1_5 (RFC8017), but it's actually RSAES-OAEP (RFC8017)
     R_C = get_random_bytes(16)
-    print("Generated client nonce (R_C = {})".format('HIDDEN' if args.hide_secret else hexlifys(R_C)))
+    print("Generated client nonce (R_C = {})".format('HIDDEN' if hide_secret else hexlifys(R_C)))
     cipher = PKCS1_OAEP.new(pubk)
     eR_C = cipher.encrypt(R_C)
-    if args.verbose:
+    if verbose:
         print("Encrypted client nonce with server's RSA public key: {}".format(hexlifys(eR_C)))
 
     # send second request
@@ -164,10 +155,50 @@ def main(args=None):
     req2 = soap.make_ClientRequest('ServerFinished', pd, req2_filled)
     print("Sending ServerFinished request to server, with encrypted client nonce...")
     raw_res2 = s.send(s.prepare_request(req2))
-    if args.verbose:
+    if verbose:
         print(raw_res2.text)
+    pd_res2, res2 = soap.parse_ServerResponse(raw_res2)
+    if verbose:
+        print(ET.tostring(res2))
+
+    # get details from response
+    details = dict(
+        service_id=get_text(res2.find('ServiceID')),
+        key_id=get_text(res2.find('TokenID'), d64s),
+        token_id=get_text(res2.find('KeyID'), d64s),
+        key_exp=get_text(res2.find('KeyExpiryDate')),
+        user=get_text(res2.find('UserID'), default=''),
+        pin_type=get_text(pd_res2.find('PinType'), int, 0),
+        add_pin=get_text(pd_res2.find('AddPIN'), int, 1),
+        otpformat='Decimal',
+        otplength=8,
+        otptime=60,
+    )
+    otpext = res2.find('Extensions/Extension')
+    if otpext:
+        details.update(
+            otpformat=get_text(otpext.find('OTPFormat'), default='Decimal'),
+            otplength=get_text(otpext.find('OTPLength'), int, 8),
+            otptime=get_text(otpext.find('otps:OTPMode/otps:Time', ns), int, 60, lambda n: n.attrib.get('TimeInterval')),
+        )
+
+    # verify MAC and token
+    K_TOKEN = details['K_TOKEN'] = ct_kip_prf_aes(R_C, number.long_to_bytes(pubk.n), b"Key generation", R_S)
+    MAC_VER = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
+    mac = get_text(res2.find('Mac'), d64b)
+    if MAC_VER == mac:
+        print("MAC verified ({})".format(hexlifys(MAC_VER)))
+        return details
+    else:
+        raise IOError("MAC not verified! Expected {} but server sent {}.".format(hexlifys(MAC_VER), hexlify(mac)),
+                      details, MAC_VER, mac)
+
+
+def main(args=None):
+    p, args, stoken = parse_args(args)
+
     try:
-        pd_res2, res2 = soap.parse_ServerResponse(raw_res2)
+        token = exchange(args.url, args.activation_code, args.verify, args.verbose, args.hide_secret)
     except requests.exceptions.RequestException as e:
         p.exit(1, "Exception in HTTP(S) request: {}\n\t{}\n".format(e.__class__.__name__, '\n\t'.join(e.args)))
     except RuntimeError as e:
@@ -176,55 +207,31 @@ def main(args=None):
             p.exit(1, "Fault from server: {}\n\t{}\n".format(code, msg))
         else:
             p.exit(1, "Fault from server:\n\t{}\n\nParsed exception:\n\t{}: {}\n".format(raw, code, msg))
-    if args.verbose:
-        print(ET.tostring(res2))
-
-    # get stuff from response
-    service_id = get_text(res2.find('ServiceID'))
-    key_id = get_text(res2.find('TokenID'), d64s)
-    token_id = get_text(res2.find('KeyID'), d64s)
-    key_exp = get_text(res2.find('KeyExpiryDate'))
-    mac = get_text(res2.find('Mac'), d64b)
-    user = get_text(res2.find('UserID'), default='')
-    pin_type = get_text(pd_res2.find('PinType'), int, 0)
-    add_pin = get_text(pd_res2.find('AddPIN'), int, 1)
-    otpext = res2.find('Extensions/Extension')
-    if otpext:
-        otpformat = get_text(otpext.find('OTPFormat'), default='Decimal')
-        otplength = get_text(otpext.find('OTPLength'), int, 8)
-        otptime = get_text(otpext.find('otps:OTPMode/otps:Time', ns), int, 60, lambda n: n.attrib.get('TimeInterval'))
-    else:
-        otpformat, otplength, otptime = 'Decimal', 8, 60
-
-    # verify MAC and token
-    K_TOKEN = ct_kip_prf_aes(R_C, number.long_to_bytes(pubk.n), b"Key generation", R_S)
-    MAC_VER = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
-    if MAC_VER == mac:
-        print("MAC verified ({})".format(hexlifys(MAC_VER)))
-    else:
-        print("ERROR: MAC not verified! Expected {} but server sent {}.".format(hexlifys(MAC_VER), hexlify(mac)))
+    except Exception as e:
+        p.exit(1, e.args[0] if e.args else e.__class__.__name__)
 
     # output token information
-    print("Received ServerFinished response with token information:")
-    print("  Service ID: {}".format(service_id))
-    print("  Key ID: {}".format(key_id))
-    print("  Token ID: {}".format(token_id))
-    print("  Token User: {}".format(user))
-    print("  Expiration date: {}".format(key_exp))
-    print("  OTP mode: {} {}, every {} seconds".format(otplength, otpformat, otptime))
-    print("  Token seed: {}".format('HIDDEN' if args.hide_secret else hexlifys(K_TOKEN)))
+    token['K_TOKEN_vis'] = 'HIDDEN' if args.hide_secret else hexlifys(token['K_TOKEN'])
+    print("Received ServerFinished response with token information:\n"
+          "  Service ID: {service_id}\n"
+          "  Key ID: {key_id}\n"
+          "  Token ID: {token_id}\n"
+          "  Token User: {user}\n"
+          "  Expiration date: {key_exp}\n"
+          "  OTP mode: {otplength} {otpformat}, every {otptime} seconds\n"
+          "  Token seed: {K_TOKEN_vis}".format(**token))
 
     if not args.filename:
         print("WARNING: Token has already been committed on server, even though you did not save it.")
     else:
+        token['K_TOKEN_b64'] = e64bs(token['K_TOKEN']).strip()
+        token['key_exp_stoken'] = token['key_exp'][:10].replace('-', '/')
         with (NamedTemporaryFile(mode='w', delete=False) if stoken else args.filename) as f:
-            K_TOKEN_b64 = e64bs(K_TOKEN).strip()
-            f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-            f.write('<TKNBatch>\n')
-            f.write('<TKNHeader><Origin>{}</Origin><DefPinType>{}</DefPinType><DefAddPin>{}</DefAddPin><DefDigits>{}</DefDigits><DefInterval>{}</DefInterval><Secret>{}</Secret></TKNHeader>\n'.format(
-                service_id, pin_type, add_pin, otplength, otptime, K_TOKEN_b64))
-            f.write('<TKN><SN>{}</SN><UserLogin>{}</UserLogin><Death>{}</Death><Seed>={}</Seed></TKN>\n'.format(token_id, user, key_exp[:10].replace('-', '/'), K_TOKEN_b64))
-            f.write('</TKNBatch>\n')
+            f.write('<?xml version="1.0" encoding="UTF-8"?>\n'
+                    '<TKNBatch>\n'
+                    '<TKNHeader><Origin>{service_id}</Origin><DefPinType>{pin_type}</DefPinType><DefAddPin>{add_pin}</DefAddPin><DefDigits>{otplength}</DefDigits><DefInterval>{otptime}</DefInterval><Secret>{K_TOKEN_b64}</Secret></TKNHeader>\n'
+                    '<TKN><SN>{token_id}</SN><UserLogin>{user}</UserLogin><Death>{key_exp_stoken}</Death><Seed>={K_TOKEN_b64}</Seed></TKN>\n'
+                    '</TKNBatch>\n'.format(**token))
         if stoken:
             try:
                 subprocess.check_call([stoken, 'export', '--random', '--sdtid', '--template', f.name], stdout=args.filename)
@@ -238,7 +245,8 @@ def main(args=None):
                 print("Saved token in XML/.sdtid format to {}".format(args.filename.name))
         if f:
             print("Saved template to {}. Working stoken is needed to convert it to XML/.sdtid format:".format(f.name))
-            print("  stoken export --random --sdtid --template={} > {}".format(f.name, args.filename.name if args.filename.name != f.name else token_id + '.sdtid'))
+            print("  stoken export --random --sdtid --template={} > {}".format(
+                f.name, args.filename.name if args.filename.name != f.name else token['token_id'] + '.sdtid'))
 
 
 if __name__ == '__main__':

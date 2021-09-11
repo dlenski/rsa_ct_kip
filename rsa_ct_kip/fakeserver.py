@@ -2,6 +2,7 @@
 import ssl
 import random
 import os
+from sys import stderr
 from datetime import datetime, timedelta
 from flask import Flask, request, abort, Response
 from xml.etree import ElementTree as ET
@@ -27,7 +28,8 @@ except Exception as e:
     context = None
     port = 8080
 
-privk = RSA.importKey(open(os.path.join(here, 'rsaprivkey.pem')).read())
+with open(os.path.join(here, 'rsaprivkey.pem')) as pk:
+    privk = RSA.importKey(pk.read())
 pubk = privk.publickey()
 
 # The XML blobs in the protocol appear to indicate
@@ -118,14 +120,15 @@ SERVER_SENDS = '''Server will send:
 
 # Handle the gawdaful SOAPy layer on the outside
 
-
 @app.route('/', methods=('POST',))
 @app.route('/ctkip/services/CtkipService', methods=('POST',))
 def unsoap():
     auth = request.headers.get('Authorization')
-    assert request.content_type == 'application/vnd.otps.ct-kip'
+    if not auth:
+        abort(401)
 
     try:
+        assert request.content_type == 'application/vnd.otps.ct-kip'
         x = ET.fromstring(request.data.decode())
         assert x.tag == '{http://schemas.xmlsoap.org/soap/envelope/}Envelope'
 
@@ -190,10 +193,10 @@ def handle_ClientNonce(sess, pdx, rx):
     K_TOKEN = ct_kip_prf_aes(R_C, number.long_to_bytes(pubk.n), b"Key generation", R_S)
     MAC = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
     print("\n\nNegotiated token:")
-    print("K_TOKEN (hex): ", hexlify(K_TOKEN))
-    print("MAC (hex): ", hexlify(MAC))
-    print("Token ID: ", tid)
-    print("Token expiration date: ", exp)
+    print("    K_TOKEN (hex): ", hexlify(K_TOKEN))
+    print("    MAC (hex): ", hexlify(MAC))
+    print("    Token ID: ", tid)
+    print("    Token expiration date: ", exp)
     print("\n\n")
 
     return PROVISIONING_DATA, SERVER_FINISHED.format(
