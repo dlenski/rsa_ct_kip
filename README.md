@@ -123,9 +123,9 @@ Credits
 * [@cemeyer](//github.com/cemeyer) for [kicking this off](//github.com/cernekee/stoken/issues/27)
   and doing most of the heavy lifting, including figuring out
   [all the mistakes](//github.com/cernekee/stoken/issues/27#issuecomment-456522178)
-  in RSA's atrociously sloppy and misleading [RFC4758](//tools.ietf.org/html/rfc4758), and writing
+  in RSA's atrociously sloppy and misleading [RFC4758](//tools.ietf.org/html/rfc4758), writing
   a [bug-for-bug matching `ct_kip_prf_aes` implementation](//gist.github.com/cemeyer/3293e4fcb3013c4ee2d1b6005e0561bf)
-  based on it.
+  based on it, and even [submitting IETF errata](//www.rfc-editor.org/errata_search.php?rfc=4758&submitter_name=Conrad+Meyer).
 * [@rgerganov](//github.com/rgerganov) for
   [reverse engineering the official client](//github.com/cernekee/stoken/issues/27#issuecomment-456113939) and
   testing.
