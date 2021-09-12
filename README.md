@@ -38,12 +38,12 @@ Provision token using client
 ============================
 
 Provide the client with the activation URL and activation code
-(usually 12 digits), and a file in which to save the token template.
+(usually 12 digits), and a file in which to save the token file.
 It will communicate with the RSA CT-KIP server and provision a token,
 then attempt to call `stoken` to convert the token to XML/.sdtid format:
 
 ```
-$ rsa_ct_kip https://server.company.com:443/ctkip/services/CtkipService ACTIVATION_CODE template.xml
+$ rsa_ct_kip https://server.company.com:443/ctkip/services/CtkipService ACTIVATION_CODE /tmp/test.sdtid
 Sending ClientHello request to server...
 Received ServerHello response with server nonce (R_S = 28198dbe2c18a00335179cc5bb4eff3a) and 1024-bit RSA public key
 Generated client nonce (R_C = 12bec1a6f4d09470986b485561c4d2b5)
