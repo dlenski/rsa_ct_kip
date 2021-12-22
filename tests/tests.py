@@ -12,6 +12,8 @@ from rsa_ct_kip.ct_kip_prf_aes import ct_kip_prf_aes
 import rsa_ct_kip.client
 import rsa_ct_kip.fakeserver
 
+from nose.tools import assert_raises
+
 
 def test_ct_kip_prf_aes():
     # Known test vector obtained from actual RSA software:
@@ -54,6 +56,7 @@ def test_full_exchange():
 
     pid = os.fork()
     if pid == 0:
+        rsa_ct_kip.fakeserver.app.config['auth'] = '12345'  # Required auth code
         rsa_ct_kip.fakeserver.app.run(host='localhost', port=port, debug=True, use_reloader=False, ssl_context=None)
         os._exit(0)
 
@@ -63,6 +66,11 @@ def test_full_exchange():
             if sock.connect_ex(('localhost', port)) != 0:
                 time.sleep(1)
 
+        # Test with bad/wrong auth code
+        with assert_raises(RuntimeError):
+            rsa_ct_kip.client.exchange('http://localhost:{}'.format(port), '67890')
+
+        # Test with correct auth code
         token = rsa_ct_kip.client.exchange('http://localhost:{}'.format(port), '12345')
         assert isinstance(token.get('K_TOKEN'), bytes)
     finally:

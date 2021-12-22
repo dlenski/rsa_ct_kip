@@ -3,7 +3,7 @@ import ssl
 import random
 import os
 from sys import stderr  # noqa: F401
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from flask import Flask, request, abort, Response
 from xml.etree import ElementTree as ET
 from Crypto.PublicKey import RSA
@@ -38,6 +38,16 @@ SOAP_WRAPPER = '''<?xml version="1.0" encoding="UTF-8"?>
       <ProvisioningData>{pd}</ProvisioningData>
       <Response>{res}</Response>
     </ServerResponse>
+  </soapenv:Body>
+</soapenv:Envelope>'''
+
+SOAP_FAULT = '''<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <soapenv:Body>
+    <soapenv:Fault>
+      <faultcode>{faultcode}</faultcode>
+      <faultstring>{faultstring}</faultstring>
+    </soapenv:Fault>
   </soapenv:Body>
 </soapenv:Envelope>'''
 
@@ -109,8 +119,16 @@ app = Flask(__name__)
 @app.route('/ctkip/services/CtkipService', methods=('POST',))
 def unsoap():
     auth = request.headers.get('Authorization')
-    if not auth:
-        abort(401)
+    if app.config.get('auth') and app.config['auth'] != auth:
+        r = Response(mimetype='text/xml', response=SOAP_FAULT.format(
+            # This is what the real RSA server sends when it doesn't like the auth code, because
+            # it is dumber than a bag of hammers designed by a committee of Java-speaking lemurs.
+            faultcode='soapenv:Server.userException',
+            faultstring=('java.rmi.RemoteException: The CT-KIP Web Service failed to process a client request. '
+                         'com.rsa.command.exception.InsufficientPrivilegeException: Invalid authorization code.;'
+                         'nested exception is: \n\tcom.rsa.command.exception.InsufficientPrivilegeException: '
+                         'Invalid authorization code.')))
+        return r
 
     try:
         assert request.content_type == 'application/vnd.otps.ct-kip'
@@ -187,8 +205,8 @@ def handle_ClientNonce(sess, pdx, rx):
 
     tid = '%012d' % random.randint(1, 999999999999)    # Random 12-digit decimal number
     userid = 'u%05d' % random.randint(1, 9999)         # Random 5-digit decimal number
-    exp = datetime.utcnow() + timedelta(days=365)
-    exp = exp.replace(hour=0, minute=0, second=0, microsecond=0).isoformat() + '+00:00'  # ISO9601 datetime
+    exp = datetime.now(timezone.utc) + timedelta(days=365)
+    exp = exp.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  # ISO8601 datetime
 
     K_TOKEN = ct_kip_prf_aes(R_C, number.long_to_bytes(pubk.n), b"Key generation", R_S)
     MAC = ct_kip_prf_aes(K_TOKEN, b"MAC 2 Computation", R_C)
