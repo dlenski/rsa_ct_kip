@@ -12,7 +12,7 @@ from rsa_ct_kip.ct_kip_prf_aes import ct_kip_prf_aes
 import rsa_ct_kip.client
 import rsa_ct_kip.fakeserver
 
-from nose.tools import assert_raises
+from nose2.tools.such import helper
 
 
 def test_ct_kip_prf_aes():
@@ -67,7 +67,7 @@ def test_full_exchange():
                 time.sleep(1)
 
         # Test with bad/wrong auth code
-        with assert_raises(RuntimeError):
+        with helper.assertRaises(RuntimeError):
             rsa_ct_kip.client.exchange('http://localhost:{}'.format(port), '67890')
 
         # Test with correct auth code
