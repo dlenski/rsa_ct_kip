@@ -235,8 +235,8 @@ def main(args=None):
         if stoken:
             try:
                 check_call([stoken, 'export', '--random', '--sdtid', '--template', f.name], stdout=args.filename)
-            except (OSError, CalledProcessError):
-                print("WARNING: Failed to save token to XML/.sdtid format with stoken. See template.")
+            except (OSError, CalledProcessError) as e:
+                print("WARNING: Failed to save token to XML/.sdtid format with stoken. See template.\n\t{}".format(e))
             else:
                 f = None
                 if args.verbose and not args.hide_secret:

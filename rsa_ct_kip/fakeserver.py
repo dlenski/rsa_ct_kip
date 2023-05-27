@@ -229,8 +229,12 @@ if __name__ == '__main__':
         context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         context.load_cert_chain('server.pem')
         port = 4443
+    except FileNotFoundError:
+        print("No server.pem in current directory: will run as plain HTTP, not HTTPS")
+        context = None
+        port = 8080
     except Exception as e:
-        print("Couldn't load server.pem from current directory: will run as plain HTTP, not HTTPS")
+        print("Failed to load server.pem from current directory: will run as plain HTTP, not HTTPS\n\t{}".format(e))
         context = None
         port = 8080
     app.run(host='localhost', port=port, debug=True, ssl_context=context)
