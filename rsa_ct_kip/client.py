@@ -2,7 +2,7 @@
 import requests
 import argparse
 import shutil
-import subprocess
+from subprocess import check_call, check_output, CalledProcessError
 from tempfile import NamedTemporaryFile
 from requests import Request
 from xml.etree import ElementTree as ET
@@ -234,13 +234,13 @@ def main(args=None):
                     '</TKNBatch>\n'.format(**token))
         if stoken:
             try:
-                subprocess.check_call([stoken, 'export', '--random', '--sdtid', '--template', f.name], stdout=args.filename)
-            except (OSError, subprocess.CalledProcessError):
+                check_call([stoken, 'export', '--random', '--sdtid', '--template', f.name], stdout=args.filename)
+            except (OSError, CalledProcessError):
                 print("WARNING: Failed to save token to XML/.sdtid format with stoken. See template.")
             else:
                 f = None
                 if args.verbose and not args.hide_secret:
-                    ctf = subprocess.check_output([stoken, 'export', '--file', args.filename.name], universal_newlines=True).strip()
+                    ctf = check_output([stoken, 'export', '--file', args.filename.name], universal_newlines=True).strip()
                     print("  Token in CTF format: {}".format(ctf))
                 print("Saved token in XML/.sdtid format to {}".format(args.filename.name))
         if f:
