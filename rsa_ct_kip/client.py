@@ -100,12 +100,16 @@ def parse_args(args=None):
     p.add_argument('-s', '--hide-secret', action='store_true', help="Don't print any secret values to console output. (Nonces and seed could be used to clone token.)")
     p.add_argument('url', help='Activation URL provided to you (often ends with /ctkip/services/CtkipService)')
     p.add_argument('activation_code', help='Normally 12 digits long')
+    p.add_argument('--no-save', action='store_true', help="Don't save the token, even though any real RSA server will have already committed it.")
     p.add_argument('filename', nargs='?', type=argparse.FileType('w'), help=(
         'Save token in XML/.sdtid format (uses stoken found in path)' if stoken
         else 'Save a template file which can be converted to a token in XML/.sdtid format with stoken'))
     args = p.parse_args(args)
-    return p, args, stoken
 
+    if not args.filename and not args.no_save:
+        p.error("Must specify either --no-save or destination filename")
+
+    return p, args, stoken
 
 def exchange(url, activation_code, verify=None, verbose=None, hide_secret=None, session=None):
     global pd, req1_hello, req2_tmpl
@@ -222,7 +226,7 @@ def main(args=None):
           "  Token seed: {K_TOKEN_vis}".format(**token))
 
     if not args.filename:
-        print("WARNING: Token has already been committed on server, even though you did not save it.")
+        print("WARNING: You requested not to save the token, but it has already been committed on server.")
     else:
         token['K_TOKEN_b64'] = e64bs(token['K_TOKEN']).strip()
         token['key_exp_stoken'] = token['key_exp'][:10].replace('-', '/')
