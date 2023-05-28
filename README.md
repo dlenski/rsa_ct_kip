@@ -1,5 +1,5 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://github.com/dlenski/rsa_ct_kip/workflows/build_and_test/badge.svg)](https://github.com/dlenski/rsa_ct_kip/actions?query=workflow%3Abuild_and_test)
+[![Build Status](https://github.com/dlenski/rsa_ct_kip/workflows/build_and_test/badge.svg)](https://github.com/dlenski/rsa_ct_kip/actions/workflows/build_and_test.yml)
 
 
 What is this for?
