@@ -11,7 +11,7 @@ from Crypto.Util import number
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 
-from rsa_ct_kip.common import hexlify, d64b, e64s, e64bs, ns
+from rsa_ct_kip.common import hexlify, d64b, e64s, e64bs, ns, escape
 from rsa_ct_kip.ct_kip_prf_aes import ct_kip_prf_aes
 
 ########################################
@@ -158,7 +158,12 @@ def unsoap():
             print(dict(R_S=R_S, R_C=R_C))
             res_pd, res_r, fields = handle_ClientNonce(sess, pdx, rx)
 
-        res_r = res_r.format(**fields)
+            # save K_TOKEN so that an end-to-end test can verify it
+            if app.config.get('save_K_TOKEN'):
+                with open(app.config.get('save_K_TOKEN'), 'wb') as kt:
+                    kt.write(d64b(fields['K_TOKEN']))
+
+        res_r = res_r.format(**{k: escape(v) for k, v in fields.items()})
         r = Response(mimetype='text/xml', response=SOAP_WRAPPER.format(auth=auth, pd=e64s(res_pd), res=e64s(res_r)))
         r.headers['X-Powered-By'] = 'Servlet/3.0 JSP/2.2'
 
@@ -218,7 +223,8 @@ def handle_ClientNonce(sess, pdx, rx):
     print("\n\n")
 
     return PROVISIONING_DATA, SERVER_FINISHED, dict(
-        userid=userid, tid=e64s(tid).rstrip(), exp=exp, sess=sess, MAC=e64bs(MAC).rstrip())
+        userid=userid, tid=e64s(tid).rstrip(), exp=exp, sess=sess, MAC=e64bs(MAC).rstrip(),
+        K_TOKEN=e64bs(K_TOKEN).rstrip())
 
 
 

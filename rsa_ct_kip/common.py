@@ -1,3 +1,8 @@
+from xml.sax.saxutils import escape as _escape
+
+def escape(x):
+  return _escape(x) if isinstance(x, str) else x
+
 ####
 # Base64 encode (bytes-to-bytes)   e64b
 #        decode (bytes-to-bytes)   d64b

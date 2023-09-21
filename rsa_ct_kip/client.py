@@ -11,7 +11,7 @@ from Crypto.Util import number
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 
-from .common import e64s, e64bs, d64s, d64b, d64sb, hexlify, hexlifys, ns
+from .common import e64s, e64bs, d64s, d64b, d64sb, hexlify, hexlifys, ns, escape
 from .ct_kip_prf_aes import ct_kip_prf_aes
 
 
@@ -155,7 +155,7 @@ def exchange(url, activation_code, verify=None, verbose=None, hide_secret=None, 
         print("Encrypted client nonce with server's RSA public key: {}".format(hexlifys(eR_C)))
 
     # send second request
-    req2_filled = req2_tmpl.format(session_id=session_id, eR_C=e64bs(eR_C), R_S=e64bs(R_S))
+    req2_filled = req2_tmpl.format(session_id=escape(session_id), eR_C=e64bs(eR_C), R_S=e64bs(R_S))
     req2 = soap.make_ClientRequest('ServerFinished', pd, req2_filled)
     print("Sending ServerFinished request to server, with encrypted client nonce...")
     raw_res2 = s.send(s.prepare_request(req2))
@@ -249,7 +249,7 @@ def main(args=None):
         token['K_TOKEN_b64'] = e64bs(token['K_TOKEN']).strip()
         token['key_exp_stoken'] = token['key_exp'][:10].replace('-', '/')
         with (NamedTemporaryFile(mode='w', delete=False) if stoken else args.filename) as f:
-            f.write(STOKEN_TEMPLATE.format(**token))
+            f.write(STOKEN_TEMPLATE.format(**{k: escape(v) for k, v in token.items()}))
         if stoken:
             try:
                 check_call([stoken, 'export', '--random', '--sdtid', '--template', f.name], stdout=args.filename)

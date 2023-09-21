@@ -4,6 +4,7 @@ import socket
 import time
 from contextlib import closing
 from binascii import hexlify, unhexlify, a2b_base64
+from tempfile import NamedTemporaryFile
 
 from Crypto.PublicKey import RSA
 from Crypto.Util import number
@@ -54,9 +55,12 @@ def test_full_exchange():
             if sock.connect_ex(('localhost', port)) != 0:
                 break
 
+    save_K_TOKEN = NamedTemporaryFile(prefix='K_TOKEN_', suffix='.b64')
+
     pid = os.fork()
     if pid == 0:
         rsa_ct_kip.fakeserver.app.config['auth'] = '12345'  # Required auth code
+        rsa_ct_kip.fakeserver.app.config['save_K_TOKEN'] = save_K_TOKEN.name
         rsa_ct_kip.fakeserver.app.run(host='localhost', port=port, debug=True, use_reloader=False, ssl_context=None)
         os._exit(0)
 
@@ -70,8 +74,11 @@ def test_full_exchange():
         with helper.assertRaises(RuntimeError):
             rsa_ct_kip.client.exchange('http://localhost:{}'.format(port), '67890')
 
-        # Test with correct auth code
+        # Test with correct auth code, and verify that the K_TOKEN we think we
+        # agreed on matches the server's value.
         token = rsa_ct_kip.client.exchange('http://localhost:{}'.format(port), '12345')
-        assert isinstance(token.get('K_TOKEN'), bytes)
+        with open(save_K_TOKEN.name, 'rb') as kt:
+            assert token.get('K_TOKEN') == kt.read()
     finally:
+        save_K_TOKEN.close()
         os.kill(pid, signal.SIGTERM)

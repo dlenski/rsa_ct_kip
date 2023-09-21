@@ -140,7 +140,6 @@ TODO
 ====
 
 * Convert raw seed into usable token _without_ invoking `stoken`?
-* Better `test_full_exchange`: verify that when `client.py` talks to `fakeserver.py`, they negotiate the same `K_TOKEN`.
 
 License
 =======
