@@ -78,9 +78,11 @@ It accepts the requests sent by the client software at two different
 paths: `/` for laziness, and `/ctkip/services/CtkipService`
 in case any real client hard-codes this path.
 
-It provisions tokens with randomly-generated 12-digit IDs, which it does
-not retain. Official RSA SecurID clients for Windows and Android have
-been verified to connect to it, and provision tokens from its output.
+It provisions tokens with randomly-generated 12-digit IDs, and random seeds, which it does
+not retain. Official RSA SecurID clients
+[for Windows](https://community.rsa.com/t5/securid-software-token-for/tkb-p/securid-software-token-microsoft-windows) and
+[for Android](https://play.google.com/store/apps/details?id=com.rsa.securidapp) have
+been verified to connect to it, and to provision tokens from its output.
 
 The server can run either via HTTP or HTTPS. For HTTPS, create a
 `server.pem` file in the same directory. It must contain a trusted,

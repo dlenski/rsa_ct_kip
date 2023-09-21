@@ -198,6 +198,24 @@ def exchange(url, activation_code, verify=None, verbose=None, hide_secret=None, 
                       details, MAC_VER, mac)
 
 
+STOKEN_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
+<TKNBatch>
+  <TKNHeader>
+    <Origin>{service_id}</Origin>
+    <DefPinType>{pin_type}</DefPinType>
+    <DefAddPin>{add_pin}</DefAddPin>
+    <DefDigits>{otplength}</DefDigits>
+    <DefInterval>{otptime}</DefInterval>
+    <Secret>{K_TOKEN_b64}</Secret>
+  </TKNHeader>
+  <TKN>
+    <SN>{token_id}</SN>
+    <UserLogin>{user}</UserLogin>
+    <Death>{key_exp_stoken}</Death>
+    <Seed>={K_TOKEN_b64}</Seed>
+  </TKN>
+</TKNBatch>'''
+
 def main(args=None):
     p, args, stoken = parse_args(args)
 
@@ -231,11 +249,7 @@ def main(args=None):
         token['K_TOKEN_b64'] = e64bs(token['K_TOKEN']).strip()
         token['key_exp_stoken'] = token['key_exp'][:10].replace('-', '/')
         with (NamedTemporaryFile(mode='w', delete=False) if stoken else args.filename) as f:
-            f.write('<?xml version="1.0" encoding="UTF-8"?>\n'
-                    '<TKNBatch>\n'
-                    '<TKNHeader><Origin>{service_id}</Origin><DefPinType>{pin_type}</DefPinType><DefAddPin>{add_pin}</DefAddPin><DefDigits>{otplength}</DefDigits><DefInterval>{otptime}</DefInterval><Secret>{K_TOKEN_b64}</Secret></TKNHeader>\n'
-                    '<TKN><SN>{token_id}</SN><UserLogin>{user}</UserLogin><Death>{key_exp_stoken}</Death><Seed>={K_TOKEN_b64}</Seed></TKN>\n'
-                    '</TKNBatch>\n'.format(**token))
+            f.write(STOKEN_TEMPLATE.format(**token))
         if stoken:
             try:
                 check_call([stoken, 'export', '--random', '--sdtid', '--template', f.name], stdout=args.filename)
