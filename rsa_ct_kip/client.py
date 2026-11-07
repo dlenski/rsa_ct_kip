@@ -203,7 +203,7 @@ STOKEN_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
   <TKNHeader>
     <Origin>{service_id}</Origin>
     <DefPinType>{pin_type}</DefPinType>
-    <DefAddPin>{add_pin}</DefAddPin>
+    <DefAddPIN>{add_pin}</DefAddPIN>
     <DefDigits>{otplength}</DefDigits>
     <DefInterval>{otptime}</DefInterval>
     <Secret>{K_TOKEN_b64}</Secret>

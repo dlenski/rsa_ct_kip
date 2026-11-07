@@ -47,6 +47,15 @@ def test_ct_kip_prf_aes():
     assert MAC_CALC == MAC
 
 
+def test_stoken_template_pin_tags():
+    # stoken matches tag names case-sensitively. A lowercase <DefAddPin> is ignored, and stoken then
+    # treats the token as one that needs a PIN, even when the server sent <AddPIN>0</AddPIN>.
+    rendered = rsa_ct_kip.client.STOKEN_TEMPLATE.format(
+        service_id='RSA CT-KIP', pin_type=0, add_pin=0, otplength=6, otptime=60, K_TOKEN_b64='AAAAAAAAAAAAAAAAAAAAAA==',
+        token_id='000000000001', user='', key_exp_stoken='2035/12/31')
+    assert '<DefAddPIN>0</DefAddPIN>' in rendered
+    assert 'DefAddPin' not in rendered
+
 
 def test_full_exchange():
     # Find an open port
